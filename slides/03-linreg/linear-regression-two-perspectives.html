@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.25">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Dr.&nbsp;Jin Zhou @ UCLA">
+<meta name="dcterms.date" content="2026-01-20">
+
+<title>Linear Regression: Two Perspectives (Inference vs Supervised Learning)</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="linear-regression-two-perspectives_files/libs/clipboard/clipboard.min.js"></script>
+<script src="linear-regression-two-perspectives_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="linear-regression-two-perspectives_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="linear-regression-two-perspectives_files/libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="linear-regression-two-perspectives_files/libs/quarto-html/popper.min.js"></script>
+<script src="linear-regression-two-perspectives_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="linear-regression-two-perspectives_files/libs/quarto-html/anchor.min.js"></script>
+<link href="linear-regression-two-perspectives_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="linear-regression-two-perspectives_files/libs/quarto-html/quarto-syntax-highlighting-7b89279ff1a6dce999919e0e67d4d9ec.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="linear-regression-two-perspectives_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="linear-regression-two-perspectives_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="linear-regression-two-perspectives_files/libs/bootstrap/bootstrap-a74871fe4945b66d259aafc266475145.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  
+  <script>
+    (function () {
+      var script = document.createElement("script");
+      script.type = "text/javascript";
+      script.src  = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js";
+      document.getElementsByTagName("head")[0].appendChild(script);
+    })();
+  </script>
+
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article toc-left">
+<div id="quarto-sidebar-toc-left" class="sidebar toc-left">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#linear-regression-as-a-statistical-inference-tool" id="toc-linear-regression-as-a-statistical-inference-tool" class="nav-link active" data-scroll-target="#linear-regression-as-a-statistical-inference-tool"><span class="header-section-number">1</span> Linear regression as a <strong>statistical (inference) tool</strong></a>
+  <ul>
+  <li><a href="#core-goal" id="toc-core-goal" class="nav-link" data-scroll-target="#core-goal"><span class="header-section-number">1.1</span> Core goal</a></li>
+  <li><a href="#model-and-estimand" id="toc-model-and-estimand" class="nav-link" data-scroll-target="#model-and-estimand"><span class="header-section-number">1.2</span> Model and estimand</a></li>
+  <li><a href="#what-you-typically-report" id="toc-what-you-typically-report" class="nav-link" data-scroll-target="#what-you-typically-report"><span class="header-section-number">1.3</span> What you typically report</a></li>
+  <li><a href="#valid-assumptions-so-cip-values-mean-what-we-think" id="toc-valid-assumptions-so-cip-values-mean-what-we-think" class="nav-link" data-scroll-target="#valid-assumptions-so-cip-values-mean-what-we-think"><span class="header-section-number">1.4</span> Valid assumptions (so CI/p-values mean what we think)</a>
+  <ul class="collapse">
+  <li><a href="#mean-structure-and-exogeneity-bias-interpretation" id="toc-mean-structure-and-exogeneity-bias-interpretation" class="nav-link" data-scroll-target="#mean-structure-and-exogeneity-bias-interpretation"><span class="header-section-number">1.4.1</span> Mean structure and exogeneity (bias / interpretation)</a></li>
+  <li><a href="#error-structure-standard-errors-and-tests" id="toc-error-structure-standard-errors-and-tests" class="nav-link" data-scroll-target="#error-structure-standard-errors-and-tests"><span class="header-section-number">1.4.2</span> Error structure (standard errors and tests)</a></li>
+  <li><a href="#design-identifiability-conditions" id="toc-design-identifiability-conditions" class="nav-link" data-scroll-target="#design-identifiability-conditions"><span class="header-section-number">1.4.3</span> Design / identifiability conditions</a></li>
+  </ul></li>
+  <li><a href="#diagnostics-you-emphasize-quick-checklist" id="toc-diagnostics-you-emphasize-quick-checklist" class="nav-link" data-scroll-target="#diagnostics-you-emphasize-quick-checklist"><span class="header-section-number">1.5</span> Diagnostics you emphasize (quick checklist)</a></li>
+  <li><a href="#typical-workflow" id="toc-typical-workflow" class="nav-link" data-scroll-target="#typical-workflow"><span class="header-section-number">1.6</span> Typical workflow</a></li>
+  <li><a href="#common-failure-modes" id="toc-common-failure-modes" class="nav-link" data-scroll-target="#common-failure-modes"><span class="header-section-number">1.7</span> Common failure modes</a></li>
+  </ul></li>
+  <li><a href="#linear-regression-as-a-supervised-learning-prediction-tool" id="toc-linear-regression-as-a-supervised-learning-prediction-tool" class="nav-link" data-scroll-target="#linear-regression-as-a-supervised-learning-prediction-tool"><span class="header-section-number">2</span> Linear regression as a <strong>supervised learning (prediction) tool</strong></a>
+  <ul>
+  <li><a href="#start-with-a-loss-function" id="toc-start-with-a-loss-function" class="nav-link" data-scroll-target="#start-with-a-loss-function"><span class="header-section-number">2.1</span> 1. Start with a loss function</a></li>
+  <li><a href="#empirical-risk-training-objective" id="toc-empirical-risk-training-objective" class="nav-link" data-scroll-target="#empirical-risk-training-objective"><span class="header-section-number">2.2</span> Empirical risk (training objective)</a></li>
+  <li><a href="#choose-squared-loss-regression" id="toc-choose-squared-loss-regression" class="nav-link" data-scroll-target="#choose-squared-loss-regression"><span class="header-section-number">2.3</span> 2. Choose squared loss (regression)</a></li>
+  <li><a href="#choose-a-function-class-linear-functions" id="toc-choose-a-function-class-linear-functions" class="nav-link" data-scroll-target="#choose-a-function-class-linear-functions"><span class="header-section-number">2.4</span> 3. Choose a function class: linear functions</a></li>
+  <li><a href="#put-it-together-linear-regression-ols" id="toc-put-it-together-linear-regression-ols" class="nav-link" data-scroll-target="#put-it-together-linear-regression-ols"><span class="header-section-number">2.5</span> 4. Put it together: linear regression (OLS)</a></li>
+  <li><a href="#matrix-form" id="toc-matrix-form" class="nav-link" data-scroll-target="#matrix-form"><span class="header-section-number">2.6</span> 5. Matrix form</a></li>
+  <li><a href="#solution-normal-equations-and-closed-form" id="toc-solution-normal-equations-and-closed-form" class="nav-link" data-scroll-target="#solution-normal-equations-and-closed-form"><span class="header-section-number">2.7</span> 6. Solution: normal equations and closed form</a></li>
+  <li><a href="#geometric-interpretation-one-line" id="toc-geometric-interpretation-one-line" class="nav-link" data-scroll-target="#geometric-interpretation-one-line"><span class="header-section-number">2.8</span> 7. Geometric interpretation (one-line)</a></li>
+  <li><a href="#why-this-is-supervised-learning" id="toc-why-this-is-supervised-learning" class="nav-link" data-scroll-target="#why-this-is-supervised-learning"><span class="header-section-number">2.9</span> 8. Why this is “supervised learning”</a></li>
+  <li><a href="#evaluate-with-held-out-data" id="toc-evaluate-with-held-out-data" class="nav-link" data-scroll-target="#evaluate-with-held-out-data"><span class="header-section-number">2.10</span> Evaluate with held-out data</a></li>
+  <li><a href="#natural-next-step-regularization-optional" id="toc-natural-next-step-regularization-optional" class="nav-link" data-scroll-target="#natural-next-step-regularization-optional"><span class="header-section-number">2.11</span> 9. Natural next step: regularization (optional)</a></li>
+  <li><a href="#ridge-regression" id="toc-ridge-regression" class="nav-link" data-scroll-target="#ridge-regression"><span class="header-section-number">2.12</span> Ridge regression</a></li>
+  <li><a href="#lasso-regression" id="toc-lasso-regression" class="nav-link" data-scroll-target="#lasso-regression"><span class="header-section-number">2.13</span> Lasso regression</a></li>
+  </ul></li>
+  <li><a href="#bottom-line" id="toc-bottom-line" class="nav-link" data-scroll-target="#bottom-line"><span class="header-section-number">3</span> Bottom line</a></li>
+  </ul>
+</nav>
+</div>
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
+</div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Linear Regression: Two Perspectives (Inference vs Supervised Learning)</h1>
+<p class="subtitle lead">Biostat 212A</p>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Dr.&nbsp;Jin Zhou @ UCLA </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">January 20, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="linear-regression-as-a-statistical-inference-tool" class="level2" data-number="1">
+<h2 data-number="1" class="anchored" data-anchor-id="linear-regression-as-a-statistical-inference-tool"><span class="header-section-number">1</span> Linear regression as a <strong>statistical (inference) tool</strong></h2>
+<section id="core-goal" class="level3" data-number="1.1">
+<h3 data-number="1.1" class="anchored" data-anchor-id="core-goal"><span class="header-section-number">1.1</span> Core goal</h3>
+<p>Explain <strong>relationships</strong> and quantify <strong>uncertainty</strong> about those relationships.</p>
+</section>
+<section id="model-and-estimand" class="level3" data-number="1.2">
+<h3 data-number="1.2" class="anchored" data-anchor-id="model-and-estimand"><span class="header-section-number">1.2</span> Model and estimand</h3>
+<p>Assume a data-generating model:</p>
+<p><span class="math display">\[
+Y = \beta_0 + \beta_1 X_1 + \cdots + \beta_p X_p + \varepsilon
+\]</span></p>
+<ul>
+<li>Target: the coefficients <span class="math inline">\(\beta_j\)</span> (associations/effects “holding others fixed”).</li>
+<li>Output: estimates <span class="math inline">\(\hat\beta\)</span> plus standard errors, confidence intervals, and hypothesis tests.</li>
+</ul>
+</section>
+<section id="what-you-typically-report" class="level3" data-number="1.3">
+<h3 data-number="1.3" class="anchored" data-anchor-id="what-you-typically-report"><span class="header-section-number">1.3</span> What you typically report</h3>
+<ul>
+<li>Coefficient table: <span class="math inline">\(\hat\beta_j\)</span>, SE, 95% CI, p-values</li>
+<li>Global summaries: overall F-test, (adjusted) <span class="math inline">\(R^2\)</span></li>
+<li>Diagnostics: residual checks, leverage/influence</li>
+</ul>
+</section>
+<section id="valid-assumptions-so-cip-values-mean-what-we-think" class="level3" data-number="1.4">
+<h3 data-number="1.4" class="anchored" data-anchor-id="valid-assumptions-so-cip-values-mean-what-we-think"><span class="header-section-number">1.4</span> Valid assumptions (so CI/p-values mean what we think)</h3>
+<p>These are the assumptions behind <em>classical</em> OLS inference (t-tests, F-tests, standard CIs).</p>
+<section id="mean-structure-and-exogeneity-bias-interpretation" class="level4" data-number="1.4.1">
+<h4 data-number="1.4.1" class="anchored" data-anchor-id="mean-structure-and-exogeneity-bias-interpretation"><span class="header-section-number">1.4.1</span> Mean structure and exogeneity (bias / interpretation)</h4>
+<ol type="1">
+<li><p><strong>Correct mean model (linearity in parameters)</strong></p>
+<p><span class="math display">\[E(Y\mid X) = \beta_0 + \sum_{j=1}^p \beta_j X_j\]</span></p>
+<p>If the true mean needs nonlinear terms or interactions that are missing, the coefficients may not represent the intended “holding-others-fixed” comparisons.</p></li>
+<li><p><strong>Exogeneity / no unmeasured confounding</strong></p>
+<p><span class="math display">\[
+E(\varepsilon\mid X)=0\]</span></p>
+<p>Intuition: after controlling for included predictors, the remaining error is unrelated to the predictors. This is the key condition for interpreting <span class="math inline">\(\beta_j\)</span> as an “effect” rather than a distorted association.</p></li>
+</ol>
+</section>
+<section id="error-structure-standard-errors-and-tests" class="level4" data-number="1.4.2">
+<h4 data-number="1.4.2" class="anchored" data-anchor-id="error-structure-standard-errors-and-tests"><span class="header-section-number">1.4.2</span> Error structure (standard errors and tests)</h4>
+<ol start="3" type="1">
+<li><p><strong>Independence</strong> (given <span class="math inline">\(X\)</span>)</p>
+<p>Errors/observations are independent (no clustering, repeated measures dependence, or time-series correlation) <em>or</em> you explicitly account for dependence (e.g., cluster-robust SE, mixed models, time-series methods).</p></li>
+<li><p><strong>Constant variance (homoskedasticity)</strong></p>
+<p><span class="math display">\[\mathrm{Var}(\varepsilon\mid X)=\sigma^2\]</span></p>
+<p>If variance changes with predictors (heteroskedasticity), the usual (non-robust) SEs and p-values can be wrong; robust SEs fix inference without changing <span class="math inline">\(\hat\beta\)</span>.</p></li>
+<li><p><strong>Normal errors (mainly for small-sample exact inference)</strong></p>
+<p><span class="math display">\[\varepsilon\mid X \sim N(0,\sigma^2)\]</span></p>
+<p>Needed for exact finite-sample t/F results. With large <span class="math inline">\(n\)</span>, inference is often approximately valid without strict normality (but outliers/heavy tails can still matter).</p></li>
+</ol>
+</section>
+<section id="design-identifiability-conditions" class="level4" data-number="1.4.3">
+<h4 data-number="1.4.3" class="anchored" data-anchor-id="design-identifiability-conditions"><span class="header-section-number">1.4.3</span> Design / identifiability conditions</h4>
+<ol start="6" type="1">
+<li><p><strong>No perfect multicollinearity / full rank design</strong></p>
+<p>Predictors are not exact linear combinations of each other. Otherwise coefficients are not uniquely identifiable.</p></li>
+<li><p><strong>Correct specification of the unit of analysis</strong></p>
+<p>Your model matches how the data were collected (random sampling vs convenience sample; repeated measures vs independent units). This shapes whether assumptions 3–5 are plausible.</p></li>
+</ol>
+</section>
+</section>
+<section id="diagnostics-you-emphasize-quick-checklist" class="level3" data-number="1.5">
+<h3 data-number="1.5" class="anchored" data-anchor-id="diagnostics-you-emphasize-quick-checklist"><span class="header-section-number">1.5</span> Diagnostics you emphasize (quick checklist)</h3>
+<ul>
+<li>Residual vs fitted: nonlinearity, heteroskedasticity</li>
+<li>QQ plot / residual distribution: normality (especially small samples)</li>
+<li>Leverage/influence: hat values, Cook’s distance</li>
+<li>Collinearity: large SEs, unstable coefficient estimates</li>
+</ul>
+</section>
+<section id="typical-workflow" class="level3" data-number="1.6">
+<h3 data-number="1.6" class="anchored" data-anchor-id="typical-workflow"><span class="header-section-number">1.6</span> Typical workflow</h3>
+<ol type="1">
+<li>Specify predictors based on the scientific question/design</li>
+<li>Fit OLS</li>
+<li>Interpret coefficients with CIs (and p-values cautiously)</li>
+<li>Check assumptions/diagnostics</li>
+<li>Refine model (transformations, interactions) or use robust methods</li>
+</ol>
+</section>
+<section id="common-failure-modes" class="level3" data-number="1.7">
+<h3 data-number="1.7" class="anchored" data-anchor-id="common-failure-modes"><span class="header-section-number">1.7</span> Common failure modes</h3>
+<ul>
+<li>Omitted variable bias (violates exogeneity)</li>
+<li>Dependence ignored (SE too small)</li>
+<li>Heteroskedasticity ignored (SE/p-values unreliable)</li>
+<li>Model fishing / multiple testing (inflated false positives)</li>
+</ul>
+</section>
+</section>
+<section id="linear-regression-as-a-supervised-learning-prediction-tool" class="level2" data-number="2">
+<h2 data-number="2" class="anchored" data-anchor-id="linear-regression-as-a-supervised-learning-prediction-tool"><span class="header-section-number">2</span> Linear regression as a <strong>supervised learning (prediction) tool</strong></h2>
+<p>We observe training data</p>
+<p><span class="math display">\[
+\{(x_i, y_i)\}_{i=1}^n,
+\]</span></p>
+<p>where <span class="math inline">\(x_i \in \mathbb{R}^p\)</span> are features (predictors) and <span class="math inline">\(y_i \in \mathbb{R}\)</span> is the response.</p>
+<p><strong>Goal:</strong> learn a prediction rule <span class="math inline">\(f\)</span> so that for a new input <span class="math inline">\(x\)</span>, the prediction <span class="math inline">\(\hat y = f(x)\)</span> is accurate.</p>
+<hr>
+<section id="start-with-a-loss-function" class="level3" data-number="2.1">
+<h3 data-number="2.1" class="anchored" data-anchor-id="start-with-a-loss-function"><span class="header-section-number">2.1</span> 1. Start with a loss function</h3>
+<p>A <strong>loss function</strong> measures how bad a prediction is:</p>
+<p><span class="math display">\[
+L\big(y, f(x)\big).
+\]</span></p>
+<p>Learning is framed as choosing a function <span class="math inline">\(f\)</span> that minimizes <em>average loss</em>.</p>
+</section>
+<section id="empirical-risk-training-objective" class="level3" data-number="2.2">
+<h3 data-number="2.2" class="anchored" data-anchor-id="empirical-risk-training-objective"><span class="header-section-number">2.2</span> Empirical risk (training objective)</h3>
+<p>In practice we minimize the <strong>empirical risk</strong> (average training loss):</p>
+<p><span class="math display">\[
+\hat R(f) = \frac{1}{n}\sum_{i=1}^n L\big(y_i, f(x_i)\big).
+\]</span></p>
+<p>So the supervised learning problem is</p>
+<p><span class="math display">\[
+\hat f = \arg\min_{f\in\mathcal{F}} \hat R(f),
+\]</span></p>
+<p>where <span class="math inline">\(\mathcal{F}\)</span> is the set (class) of functions we allow.</p>
+<hr>
+</section>
+<section id="choose-squared-loss-regression" class="level3" data-number="2.3">
+<h3 data-number="2.3" class="anchored" data-anchor-id="choose-squared-loss-regression"><span class="header-section-number">2.3</span> 2. Choose squared loss (regression)</h3>
+<p>For regression, a common choice is <strong>squared loss</strong>:</p>
+<p><span class="math display">\[
+L(y, \hat y) = (y-\hat y)^2.
+\]</span></p>
+<p>Then empirical risk becomes the <strong>mean squared error (MSE)</strong> on the training set:</p>
+<p><span class="math display">\[
+\hat R(f) = \frac{1}{n}\sum_{i=1}^n \big(y_i - f(x_i)\big)^2.
+\]</span></p>
+<hr>
+</section>
+<section id="choose-a-function-class-linear-functions" class="level3" data-number="2.4">
+<h3 data-number="2.4" class="anchored" data-anchor-id="choose-a-function-class-linear-functions"><span class="header-section-number">2.4</span> 3. Choose a function class: linear functions</h3>
+<p>Now restrict to <strong>linear predictors</strong>:</p>
+<p><span class="math display">\[
+\mathcal{F} = \{ f_{\beta}(x) = \beta_0 + x^\top\beta \},
+\]</span></p>
+<p>where</p>
+<ul>
+<li><span class="math inline">\(\beta_0\)</span> is the intercept,</li>
+<li><span class="math inline">\(\beta \in \mathbb{R}^p\)</span> are the coefficients.</li>
+</ul>
+<p>(Equivalently, you can augment <span class="math inline">\(x\)</span> with a leading 1 and write <span class="math inline">\(f_{\theta}(x)=\tilde x^\top\theta\)</span>.)</p>
+<hr>
+</section>
+<section id="put-it-together-linear-regression-ols" class="level3" data-number="2.5">
+<h3 data-number="2.5" class="anchored" data-anchor-id="put-it-together-linear-regression-ols"><span class="header-section-number">2.5</span> 4. Put it together: linear regression (OLS)</h3>
+<p>Plug squared loss and linear functions into the empirical risk minimization objective:</p>
+<p><span class="math display">\[
+(\hat\beta_0, \hat\beta)
+= \arg\min_{\beta_0,\beta}
+\frac{1}{n}\sum_{i=1}^n \Big(y_i - (\beta_0 + x_i^\top\beta)\Big)^2.
+\]</span></p>
+<p>This optimization problem is <strong>ordinary least squares (OLS)</strong>, i.e., <strong>linear regression</strong>.</p>
+<hr>
+</section>
+<section id="matrix-form" class="level3" data-number="2.6">
+<h3 data-number="2.6" class="anchored" data-anchor-id="matrix-form"><span class="header-section-number">2.6</span> 5. Matrix form</h3>
+<p>Let <span class="math inline">\(X \in \mathbb{R}^{n\times (p+1)}\)</span> include a column of ones (for the intercept), <span class="math inline">\(y\in\mathbb{R}^n\)</span>, and <span class="math inline">\(\beta\in\mathbb{R}^{p+1}\)</span>.</p>
+<p>Then the objective can be written compactly as</p>
+<p><span class="math display">\[
+\hat\beta = \arg\min_{\beta} \|y - X\beta\|_2^2.
+\]</span></p>
+<hr>
+</section>
+<section id="solution-normal-equations-and-closed-form" class="level3" data-number="2.7">
+<h3 data-number="2.7" class="anchored" data-anchor-id="solution-normal-equations-and-closed-form"><span class="header-section-number">2.7</span> 6. Solution: normal equations and closed form</h3>
+<p>Taking derivatives and setting them to zero yields the <strong>normal equations</strong>:</p>
+<p><span class="math display">\[
+X^\top X\,\hat\beta = X^\top y.
+\]</span></p>
+<p>If <span class="math inline">\(X^\top X\)</span> is invertible,</p>
+<p><span class="math display">\[
+\hat\beta = (X^\top X)^{-1}X^\top y.
+\]</span></p>
+<p>Predictions on the training inputs are</p>
+<p><span class="math display">\[
+\hat y = X\hat\beta,
+\]</span></p>
+<p>and for a new input <span class="math inline">\(x\)</span>,</p>
+<p><span class="math display">\[
+\hat y(x) = \hat\beta_0 + x^\top\hat\beta.
+\]</span></p>
+<hr>
+</section>
+<section id="geometric-interpretation-one-line" class="level3" data-number="2.8">
+<h3 data-number="2.8" class="anchored" data-anchor-id="geometric-interpretation-one-line"><span class="header-section-number">2.8</span> 7. Geometric interpretation (one-line)</h3>
+<p>OLS predictions <span class="math inline">\(\hat y\)</span> are the <strong>orthogonal projection of <span class="math inline">\(y\)</span> onto the column space of <span class="math inline">\(X\)</span></strong>.</p>
+<hr>
+</section>
+<section id="why-this-is-supervised-learning" class="level3" data-number="2.9">
+<h3 data-number="2.9" class="anchored" data-anchor-id="why-this-is-supervised-learning"><span class="header-section-number">2.9</span> 8. Why this is “supervised learning”</h3>
+<p>In the supervised learning view:</p>
+<ul>
+<li>Coefficients are mainly a <strong>means to an end</strong>: produce a predictor <span class="math inline">\(\hat f\)</span>.</li>
+<li>The main criterion is <strong>generalization</strong> (performance on new data), not p-values.</li>
+</ul>
+</section>
+<section id="evaluate-with-held-out-data" class="level3" data-number="2.10">
+<h3 data-number="2.10" class="anchored" data-anchor-id="evaluate-with-held-out-data"><span class="header-section-number">2.10</span> Evaluate with held-out data</h3>
+<ul>
+<li>Use a <strong>train/test split</strong> or <strong>cross-validation</strong>.</li>
+<li>Report predictive metrics such as <strong>RMSE</strong> or <strong>MAE</strong> on held-out data.</li>
+</ul>
+<hr>
+</section>
+<section id="natural-next-step-regularization-optional" class="level3" data-number="2.11">
+<h3 data-number="2.11" class="anchored" data-anchor-id="natural-next-step-regularization-optional"><span class="header-section-number">2.11</span> 9. Natural next step: regularization (optional)</h3>
+<p>Same squared-loss + linear function class, but add a penalty to improve generalization when predictors are many or collinear.</p>
+</section>
+<section id="ridge-regression" class="level3" data-number="2.12">
+<h3 data-number="2.12" class="anchored" data-anchor-id="ridge-regression"><span class="header-section-number">2.12</span> Ridge regression</h3>
+<p><span class="math display">\[
+\min_{\beta}\ \|y - X\beta\|_2^2 + \lambda\|\beta\|_2^2.
+\]</span></p>
+</section>
+<section id="lasso-regression" class="level3" data-number="2.13">
+<h3 data-number="2.13" class="anchored" data-anchor-id="lasso-regression"><span class="header-section-number">2.13</span> Lasso regression</h3>
+<p><span class="math display">\[
+\min_{\beta}\ \|y - X\beta\|_2^2 + \lambda\|\beta\|_1.
+\]</span></p>
+<p>Choose <span class="math inline">\(\lambda\)</span> using cross-validation.</p>
+</section>
+</section>
+<section id="bottom-line" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="bottom-line"><span class="header-section-number">3</span> Bottom line</h2>
+<p>Same fitted form, different purpose:</p>
+<ul>
+<li><p><strong>Inference</strong> asks: “What is <span class="math inline">\(\beta_j\)</span> and how uncertain are we?” (assumptions + diagnostics matter)</p></li>
+<li><p><strong>Supervised learning</strong> asks: “How small is the <strong>test error</strong>?” (CV/holdout + regularization matter)</p></li>
+</ul>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
