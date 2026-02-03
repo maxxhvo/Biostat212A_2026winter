@@ -1,6 +1,6 @@
 ---
 title: "Machine Learning Workflow: Adding Nonlinearities to Predictive Modeling"
-subtitle: "Biostat 274"
+subtitle: "Biostat 212A"
 author: "Dr. Jin Zhou @ UCLA"
 date: today
 format:
