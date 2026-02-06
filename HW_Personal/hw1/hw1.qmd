@@ -1,0 +1,557 @@
+---
+title: "Biostat 212a Homework 1"
+subtitle: "Due Jan 25, 2026 @ 11:59PM"
+author: Max Vo ; 106784933
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    number-sections: true
+    toc: true
+    toc-depth: 4
+    toc-location: left
+    code-fold: false
+  
+engine: knitr
+knitr:
+  opts_chunk: 
+    fig.align: 'center'
+    # fig.width: 6
+    # fig.height: 4
+    message: FALSE
+    cache: false
+
+#format:
+#  pdf:
+#    engine: typst
+---
+
+## Filling gaps in lecture notes (10% pts)
+
+Consider the regression model
+$$
+Y = f(X) + \epsilon,
+$$
+where $\operatorname{E}(\epsilon) = 0$. 
+
+### Optimal regression function
+
+Show that the choice
+$$
+f_{\text{opt}}(X) = \operatorname{E}(Y | X)
+$$
+minimizes the mean squared prediction error
+$$
+\operatorname{E}\{[Y - f(X)]^2\},
+$$
+where the expectations averages over variations in both $X$ and $Y$. (Hint: condition on $X$.)
+
+![solution to optimal regression function](/Screenshots/Q1.1.png)
+
+__NOTE:__ There is a pdf version in the screenshots in the Screenshots folder.
+
+### Bias-variance trade-off
+
+Given an estimate $\hat f$ of $f$, show that the test error at a $x_0$ can be decomposed as
+$$
+\operatorname{E}\{[y_0 - \hat f(x_0)]^2\} = \underbrace{\operatorname{Var}(\hat f(x_0)) + [\operatorname{Bias}(\hat f(x_0))]^2}_{\text{MSE of } \hat f(x_0) \text{ for estimating } f(x_0)} + \underbrace{\operatorname{Var}(\epsilon)}_{\text{irreducible}},
+$$
+where the expectation averages over the variability in $y_0$ and $\hat f$.
+
+![solution to bias-variance trade-off](/Screenshots/Q1.2.png)
+
+## ISL Exercise 2.4.3 (10% pts)
+
+__Inserted from the book:__
+3. We now revisit the bias-variance decomposition.
+
+(a) Provide a sketch of typical (squared) bias, variance, training er-
+ror, test error, and Bayes (or irreducible) error curves, on a sin-
+gle plot, as we go from less flexible statistical learning methods
+towards more flexible approaches. The x-axis should represent
+the amount of flexibility in the method, and the y-axis should
+represent the values for each curve. There should be five curves.
+Make sure to label each one.
+
+(b) Explain why each of the five curves has the shape displayed in
+part (a).
+
+```{r}
+# Plotting typical squared bias, variance, training error, test error, and Bayes (or irreducible) error curves
+library(ggplot2)
+
+flexibility <- seq(1, 10, by = 0.1) # represents model complexity
+# low values = less flexible, high values = more flexible
+squared_bias <- exp(-flexibility)
+variance <- flexibility / 10
+training_error <- exp(-flexibility / 2)
+test_error <- squared_bias + variance + 0.1
+irreducible_error <- rep(0.5, length(flexibility))
+
+data <- data.frame(flexibility, squared_bias, variance, training_error, test_error, irreducible_error)
+ggplot(data, aes(x = flexibility)) +
+  geom_line(aes(y = squared_bias, color = "Squared Bias")) +
+  geom_line(aes(y = variance, color = "Variance")) +
+  geom_line(aes(y = training_error, color = "Training Error")) +
+  geom_line(aes(y = test_error, color = "Test Error")) +
+  geom_line(aes(y = irreducible_error, color = "Irreducible Error")) +
+  labs(y = "Error", color = "Legend") +
+  ggtitle("Bias-Variance Trade-off") +
+  theme_minimal()
+```
+
+__Explanation:__
+
+* __Squared Bias:__ As model flexibility increases, the squared bias decreases because more flexible models can better capture the underlying patterns in the data.
+  * exp(-flexibility) represents the trend, since at low fflexibility bias is relatively high, and it decreases rapidly as flexibility increases.
+* __Variance:__ Variance increases with model flexibility because more complex models are more sensitive to noise in the training data.
+  * flexibility / 10 represents the trend, since at low flexibility variance is low, and it increases linearly as flexibility increases.
+* __Training Error:__ Training error usually decreases with flexibility because simple models usually don't capture the training data well, while complex models can fit the training data closely.
+  * exp(-flexibility / 2) represents the trend, since at low flexibility training error is relatively high, and it decreases as flexibility increases.
+  * Decreases more slowly than squared bias because even a moderately complex model can fit the training data well.
+* __Test Error:__ Test error initially decreases as flexibility increases (due to a reduction in bias), but eventually increases again (due to variance dominating at higher complexity). This results in a U-shaped curve.
+  * At low flexibility, test error is high due to high bias. At moderate flexibility, bias decreases and variance is still relatively low leading to minimized test error.
+  * in the function test_error = squared_bias + variance + 0.1, the 0.1 represents the irreducible error.
+* __Irreducible Error:__ This is constant and represents inherent noise in the data that cannot be reduced by any model.
+  * It is represented as a horizontal line at 0.5 in this example.
+
+## ISL Exercise 2.4.4 (10% pts)
+
+You will now think of some real-life applications for statistical learning.
+
+
+a. Describe three real-life applications in which classification might
+be useful. Describe the response, as well as the predictors. Is the
+goal of each application inference or prediction? Explain your
+answer.
+  1. Classification of Email as Spam or Not Spam:
+     - Response: Binary variable indicating whether an email is spam (1) or not spam (0).
+     - Predictors: Features such as the presence of certain keywords, sender's email address, email length, and frequency of links.
+     - Goal: Prediction. The primary goal is to accurately classify new incoming emails as spam or not spam based on learned patterns from historical data.
+  2. Classification of Data for Data Security/Privacy to ensure appropriate handling according to regulations:
+    - Response: Categorical variable indicating the sensitivity level of data (e.g., public, internal, confidential, highly confidential).
+    - Predictors: Features such as data source, content type, user access patterns, and available metadata.
+    - Goal: Inference. The primary goal is to understand the factors that contribute to data sensitivity levels to inform policy decisions and ensure compliance with data protection regulations. (could also be prediction but I think inference is more relevant here)
+  3. Medical Diagnosis (e.g. Determining Classification of Tumors):
+     - Response: Binary variable indicating whether a tumor is malignant (1) or benign (0).
+     - Predictors: Characteristics such as tumor size, shape, texture, patient age, and family history.
+     - Goal: Prediction. The primary goal is to accurately classify new tumor cases based on learned patterns from historical medical data.
+
+b. Describe three real-life applications in which regression might
+be useful. Describe the response, as well as the predictors. Is the
+goal of each application inference or prediction? Explain your
+answer.
+  1. Predicting House Prices:
+     - Response: Continuous variable representing the price of a house.
+     - Predictors: Features such as square footage, number of bedrooms and bathrooms, location, age of the house, when the house was sold, and proximity to necessary amenities.
+     - Goal: Prediction. The primary goal is to accurately estimate the price of new houses based on patterns from historical sales data or other relevant sources.
+  2. Estimating Patient Length of Hospital Stay:
+     - Response: Continuous variable representing the number of days a patient stays in the hospital.
+     - Predictors: Patient characteristics such as patient age, severity of illness, comorbidities, treatment type, and hospital resources.
+     - Goal: Prediction. The primary goal is to accurately estimate the length of stay for new patients to optimize resource allocation for the hospital and improve patient care.
+  3. Forecasting Sales Revenue:
+     - Response: Continuous variable representing the total sales revenue for a company over a specific period.
+     - Predictors: Features such as how much the marketing team spent, economic indicators like GDP, seasonal trends, and status of competitors.
+     - Goal: Prediction. The primary goal is to accurately forecast future sales revenue based on historical sales data and market conditions.
+
+c. Describe three real-life applications in which cluster analysis
+might be useful.
+  1. Targeted Advertising/Marketing: 
+      - An add focused online streaming service might use cluster analysis to group users based on viewing habits and other demographic data. This allows the service to create targeting advertising campaigns that are targetted towards groups of users with similar interests.
+  2. Categorization of Diseases (e.g. by severity or type):
+      - In healthcare, cluster analysis can be used to group patients based on symptoms, genetic information, and other health indicators. This can help in identifying subtypes of diseases and tailoring treatment plans accordingly.
+      - Moreover, when it comes to conditions that are typically diagnosed as a spectrum, cluster analysis can attempt to group patients into more discrete categories based on their symptoms and other factors.
+  3. Genomic Data Analysis:
+      - Cluster Analysis can be utilized by researchers to examine similarities and differences in gene expression data. For example it could be used to determine groups of genes that are frequently expressed together across conditions.
+      - Cluster Analysis could be used across species (to identify links between species) or even at the scale of identifying patterns within a single organism.
+
+## ISL Exercise 2.4.10 (30% pts)
+
+Your can read in the `boston` data set directly from url <https://raw.githubusercontent.com/ucla-biostat-212a/2026winter/master/slides/data/Boston.csv>. A documentation of the `boston` data set is [here](https://www.rdocumentation.org/packages/ISLR2/versions/1.3-2/topics/Boston).
+
+
+(a) To begin, load in the Boston data set. The Boston data set is
+```{r}
+library(tidyverse)
+
+Boston <- read_csv("https://raw.githubusercontent.com/ucla-biostat-212a/2026winter/master/slides/data/Boston.csv", col_select = -1) %>% 
+  print(width = Inf)
+```
+How many rows are in this data set? How many columns? What
+do the rows and columns represent?
+```{r}
+glimpse(Boston)
+```
+There are 506 rows and 13 columns in this data set. Each row corresponds to an individual observation, with each row representing a specific surburb in the Boston area. Each column represents a different predictor variables that was measured for each suburb. 
+
+(b) Make some pairwise scatterplots of the predictors (columns) in
+this data set. Describe your findings.
+
+```{r}
+#| cache: true
+#| text-overflow: wrap
+library(GGally)
+p_all <- ggpairs(
+  data = Boston,
+  mapping = aes(alpha = 0.3),
+  lower = list(continuous = "smooth"),
+  upper = list(continuous = GGally::wrap("cor", size = 2))
+) +
+  labs(title = "Boston Data")
+print(p_all)
+
+# The output becomes really cluttered at this size output, but some general observations can still be made.
+# had to explicity print because Quarto Ouput was being finicky
+```
+
+* There appears to be a negative relationship between the per capita crime rate (`crim`) and the median value of owner-occupied homes in $1000s (`medv`). As the crime rate increases, the median value of homes tends to decrease.
+* There is a positive relationship between the average number of rooms per dwelling (`rm`) and the median value of owner-occupied homes (`medv`). Suburbs with more rooms per dwelling tend to have higher median home values.
+* There is a positive relationship between the percentage of lower status of the population (`lstat`) and the per capita crime rate (`crim`). Suburbs with a higher percentage of lower status individuals tend to have higher crime rates.
+
+```{r}
+#| cache: true
+# example with selected variables to make output less cluttered
+library(GGally)
+selected_vars <- c("crim", "rm", "lstat", "medv")
+p_sel <- ggpairs(
+  data = Boston,
+  columns = selected_vars,
+  mapping = aes(alpha = 0.3),
+  lower = list(continuous = "smooth")
+) +
+  labs(title = "Boston Data Pairwise for Selected Variables")
+print(p_sel)
+```
+
+(c) Are any of the predictors associated with per capita crime rate?
+If so, explain the relationship.
+
+Yes, there are several predictors that appear to be associated with the per capita crime rate (`crim`). Some notable relationships are a positive association between `crim` and `rad` (index of accessibility to radial highways), indicating that suburbs with better access to highways tend to have higher crime rates. There is also a positive association between `crim` and `tax` (full-value property tax rate per $10,000), suggesting that suburbs with higher property tax rates tend to have higher crime rates. There is also slightly less notable (below a 0.5 correlation threshold) negative associations between `crim` and `medv` as well as `dis` (weighted distances to five Boston employment centers), indicating that suburbs with higher median home values and those located further from employment centers tend to have lower crime rates.
+
+(d) Do any of the census tracts of Boston appear to have particularly
+high crime rates? Tax rates? Pupil-teacher ratios? Comment on
+the range of each predictor.
+
+```{r}
+# sort by crim, tax, and ptratio to find the top 10 highest values for each suburb
+# tried loading with ID ~ not removing first column but the IDs are numbers and not strings so I can't identify specific suburbs with particularly high values
+
+summary(Boston$crim)
+summary(Boston$tax)
+summary(Boston$ptratio)
+
+# Top 5 census tracts sorted by crime rate
+top5_crim <- Boston[order(-Boston$crim), ][1:5, ]
+top5_crim
+
+# Top 5 census tracts sorted by tax rate
+top5_tax <- Boston[order(-Boston$tax), ][1:5, ]
+top5_tax
+
+# Top 5 census tracts sorted by pupil-teacher ratio
+top5_ptratio <- Boston[order(-Boston$ptratio), ][1:5, ]
+top5_ptratio
+```
+
+__From Running this Exploratory Data Analysis:__
+
+* There are a few census tracts with particularly high `per capita crime rates`. The maximum crime rate (`crim`) in the data set is 88.9762, (with lesser values quickly dropping off to 73.5, 67.9... but remaining extreme) compared to th median crim rate of around 0.26. (avoid using mean for this comparison since there are extreme outliers). This indicates that there are some suburbs with significantly higher crime rates compared to the majority of suburbs in the data set. The range of crime rates is from 0.00632 to 88.9762, showing a wide variation in crime rates across different census tracts.
+* For `tax` (full-value property-tax rate per $10,000), the maximum value is 711, with a median of 296. Using the brief method of comparison (IQR*1.5 rule) this value is not an extreme outlier, but in the context of property tax rates, it is still notably high compared to the majority of suburbs. The range of tax rates is from 187 to 711, indicating a significant variation in property tax rates across different census tracts.
+* For `pupil-teacher ratio` (`ptratio`), the maximum value is 22.0, with a median of 19.05. When looking at the range/distribution of this variable, it seems that there are instead suburbs with particularly low pupil-teacher ratios rather than high ones. The minimum value is 12.6, which is notably lower than the median (in comparison to the difference between the median and the maximum value). The range of pupil-teacher ratios is from 12.6 to 22.0, indicating a moderate variation in pupil-teacher ratios across different census tracts.
+
+(e) How many of the census tracts in this data set bound the Charles
+river?
+
+```{r}
+# Count the number of census tracts that bound the Charles river
+table(Boston$chas)
+```
+__From Documentation:__ `chas` is a binary variable that indicates whether tract bounds the Charles River that takes a value of "1" if tract bounds river and "0" otherwise. Therefore, from the code output above, there are 35 census tracts in this data set that bound the Charles river.
+
+(f) What is the median pupil-teacher ratio among the towns in this
+data set?
+
+```{r}
+# already obtained in part (d) using summary() but to explicity obtain
+median_ptratio <- median(Boston$ptratio)
+median_ptratio
+```
+The median pupil-teacher ratio among the towns in this data set is approximately 19.05.
+
+
+(g) Which census tract of Boston has lowest median value of owner-
+occupied homes? What are the values of the other predictors
+for that census tract, and how do those values compare to the
+overall ranges for those predictors? Comment on your findings.
+
+```{r}
+# Find tract(s) with lowest median home value
+lowest_medv <- Boston[Boston$medv == min(Boston$medv), ]
+print(lowest_medv, width = Inf)
+
+# Compare these predictor values to overall ranges
+summary(Boston)
+```
+
+We can identify there are two census tracts with the lowest median value of owner-occupied homes, both having a `medv` value of 5.0. The values of the other predictors for these census tracts are as follows:
+
+* `crim`: takes the values 38.4 and 67.9 both extremely high compared the typical range of crim values. These tracts exhibit extremely high crime rates relative to the overall distribution, which is consistent with the commonly observed negative association between crime rates and median home values.
+* `zn`: takes the values 0 for both, which is at the lower end of the range (0 to 100). This indicates that these tracts have no proportion of residential land zoned for lots over 25,000 sq.ft.
+* `indus`: takes the values 18.1 and 18.1, which is at the higher end of the range (0.46 to 27.74). This suggests that these tracts have a significant proportion of non-retail business acres per town.
+* `chas`: takes the values 0 for both, indicating that neither tract bounds the Charles River.
+* `nox`: both take the value 0.693, which is on the higher end for the range (0.385 to 0.871). This indicates higher levels of nitrogen oxides concentration in the air for these tracts. 
+* `rm`: takes the values 5.45 and 5.68, which is on the lower end of the range (3.561 to 8.780). This suggests that these tracts have fewer average number of rooms per dwelling.
+* `age`: takes the values 100.0 and 100.0, which at the higher end of the range (2.9 to 100.0). This indicates that all the buildings in these tracts are quite old (built before 1940). 
+* `dis`: takes the values 1.49 and 1.43, which is on the lower end of the range (1.1296 to 12.1265). This suggests that these tracts are located closer to employment centers in Boston which I find interesting since one might expect that being closer to employment centers would increase home values. Perhaps, proximity to employment centers may coincide with other factors such as industrial activity, pollution, and traffic, which can negatively impact housing values.
+* `rad`: takes the values 24 for both tracts, which is at the higher end of the range (1 to 24). This indicates that these tracts have high accessibility to radial highways.
+* `tax`: takes the value of 666 for both tracts, which is at the higher end of the range (187 to 711). This suggests that these tracts have high relatively high property tax rates in spite of having low median home values.
+* `ptratio`: takes the values of 20.2 for both tracts, which are both at the higher end of the range (12.6 to 22.0). This indicates that these tracts have relatively high pupil-teacher ratios.
+* `lstat`: takes the values 30.6 and 23.0, which are both at the higher end of the range (1.73 to 37.97). This suggests that these tracts have a high percentage of lower status of the population which intuitively aligns with the low median home values.
+
+(h) In this data set, how many of the census tracts average more than
+seven rooms per dwelling? More than eight rooms per dwelling?
+Comment on the census tracts that average more than eight
+rooms per dwelling.
+
+```{r}
+# More than 7 rooms
+sum(Boston$rm > 7)
+
+# More than 8 rooms
+sum(Boston$rm > 8)
+
+# Quick Summary of tracts with more than 8 rooms
+summary(Boston[Boston$rm > 8, ])
+```
+
+From code output we identify that there are 64 census tracts that average more than seven rooms per dwelling, and 13 census tracts that average more than eight rooms per dwelling.
+
+Some Important Observations when comparing the census tracts that average more than eight rooms per dwelling to the overall data set:
+
+* `medv`we see that the median value of owner-occupied homes (`medv`) for these tracts is significantly higher, with a median of 48.3 compared to the overall median of 21.2. This suggests that larger homes are associated with higher property values. Furthermore, it seems apparent that since median is 48.3, 3rd Quartile is 50 and the max is 50, that `medv` may be capped at 50 in this data set.
+* similarity in distribution of `age` (proportion of owner-occupied units built prior to 1940) between these tracts and the overall data set, with both having a median of 77.5. This indicates that the age of homes does not significantly differ between larger homes and the overall population.
+* the general distribution of `crim` is higher in this tracts, i.e. the median is 0.52 compared to overall median of 0.26. The overall `crim` has extreme outliers; the subset `rm > 8` likely has fewer, which resulted in a lower mean despite a higher median (0.72 vs 3.61 overall). This suggests that while larger homes tend to be in areas with slightly higher crime rates, the difference is not substantial.
+* One of the strongest differentiators is `lstat` (percentage of lower status of the population), where these tracts have a significantly lower mean of 4.31 compared to the overall mean of 11.3 (with the overall dataset have much higher extremes). This indicates that larger homes are typically located in areas with a lower percentage of lower status individuals, which may reflect socioeconomic factors influencing housing size and quality.
+* Other variables such as `nox`, `tax`, `ptratio` and `rad` exhibit lesser differences between these tracts and the overall data set, suggesting that factors like air quality, property tax rates, pupil-teacher ratios, and accessibility to radial highways are not strongly associated with the size of homes in this data set.
+
+
+## ISL Exercise 3.7.3 (20% pts)
+Suppose we have a data set with five predictors, X1 = GPA, X2 =
+IQ, X3 = Level (1 for College and 0 for High School), X4 = Interac-
+tion between GPA and IQ, and X5 = Interaction between GPA and
+Level. The response is starting salary after graduation (in thousands
+of dollars). Suppose we use least squares to fit the model, and get
+β̂0 = 50, β̂1 = 20, β̂2 = 0.07, β̂3 = 35, β̂4 = 0.01, β̂5 = −10.
+
+(a) Which answer is correct, and why?
+i. For a fixed value of IQ and GPA, high school graduates earn
+more, on average, than college graduates.
+ii. For a fixed value of IQ and GPA, college graduates earn
+more, on average, than high school graduates.
+iii. For a fixed value of IQ and GPA, high school graduates earn
+more, on average, than college graduates provided that the
+GPA is high enough.
+iv. For a fixed value of IQ and GPA, college graduates earn
+more, on average, than high school graduates provided that
+the GPA is high enough.
+
+The correct answer is "iii": For a fixed value of IQ and GPA, high school graduates earn more, on average, than college graduates provided that the GPA is high enough.
+
+The Regression model can be expressed as:
+$$
+\hat{Y} = 50 + 20 \cdot \text{GPA} + 0.07 \cdot \text{IQ} + 35 \cdot \text{Level} + 0.01 \cdot (\text{GPA} \times \text{IQ}) - 10 \cdot (\text{GPA} \times \text{Level})
+$$
+At Level = 0 (High School Graduate):
+$$
+\hat{Y}_{HS} = 50 + 20 \cdot \text{GPA} + 0.07 \cdot \text{IQ} + 0.01 \cdot (\text{GPA} \times \text{IQ})
+$$
+At Level = 1 (College Graduate):
+$$
+\hat{Y}_{College} = 50 + 20 \cdot \text{GPA} + 0.07 \cdot \text{IQ} + 35 + 0.01 \cdot (\text{GPA} \times \text{IQ}) - 10 \cdot \text{GPA}
+$$
+Calculting the difference in predicted salary between college and high school graduates:
+$$
+\Delta \hat{Y} = \hat{Y}_{College} - \hat{Y}_{HS} = 35 - 10 \cdot \text{GPA}
+$$
+Looking at the Inequality 35 - 10 * GPA > 0 we find that college graduates earn more than high school graduates when GPA < 3.5, and high school graduates earn more than college graduates when GPA > 3.5. __Therefore, the correct answer is (iii).__
+
+(b) Predict the salary of a college graduate with IQ of 110 and a
+GPA of 4.0.
+
+Using the Regression Model and Plugging in IQ = 110, GPA = 4.0, and Level = 1 for college graduate:
+$$
+\hat{Y} = 50 + 20 \cdot 4.0 + 0.07 \cdot 110 + 35 + 0.01 \cdot (4.0 \times 110) - 10 \cdot (4.0 \times 1) = 137.1
+$$
+The predicted salary of a college graduate with an IQ of 110 and a GPA of 4.0 is 137,100 dollars. (units are thousands of dollars)
+
+(c) True or false: Since the coeﬀicient for the GPA/IQ interaction
+term is very small, there is very little evidence of an interaction
+effect. Justify your answer.
+
+False. The magnitude for the coefficient of an interaction term alone does not determine whether or not there exists a significant interaction effect. The significance of an interaction effect should be assessed based on statistical tests (e.g., t-tests) or construction of confidence intervals associated with the coefficient estimates. A small coefficient may still be statistically significant if the variability in the data is low, indicating that the interaction effect is meaningful in the context of the model. (for example the scale of the units being in 1000s of dollars may make the coefficient appear small but it could still be significant in context)
+
+## ISL Exercise 3.7.15 (20% pts)
+
+This problem involves the Boston data set. We will now try to predict per capita crime rate using the other variables in this data set. In other words, per capita crime rate is the response, and the other variables are the predictors.
+
+(a) For each predictor, fit a simple linear regression model to predict
+the response. Describe your results. In which of the models is
+there a statistically significant association between the predictor
+and the response? Create some plots to back up your assertions.
+
+```{r}
+library(tidyverse)
+library(broom)
+
+predictor_vars <- colnames(Boston)[2:13] # Exclude 'crim' which is the response
+
+# Save model summaries and obtain relevant statistics
+simple_lm_results <- list()
+rows <- vector("list", length(predictor_vars))
+names(rows) <- predictor_vars
+
+for (var in predictor_vars) {
+  model <- lm(reformulate(var, response = "crim"), data = Boston)
+  simple_lm_results[[var]] <- summary(model)
+  rows[[var]] <- tidy(model) %>%
+    filter(term == var) %>%
+    select(term, estimate, std.error, statistic, p.value)
+}
+
+model_results <- bind_rows(rows, .id = "predictor")
+model_results[,-1]
+```
+
+Looking at the Code Output above, we can identify the predictors that have a statistically significant association with the response variable `crim` (per capita crime rate) based on the p-values associated with each predictor's coefficient estimate. Utilizing a significant level of 0.05:
+
+* the variables `indus`, `nox`, `age`, `rad`, `tax`, `ptratio`, and `lstat` are positively associated with `crim` and have p-values less than 0.05 which indicates statistically significant associations.
+* the variables `zn`, `rm`, `medv`and `dis` are negatively associated with `crim` and have p-values less than 0.05 which indicates statistically significant associations.
+* `chas` does not have a statistically significant association with `crim` as its p-value is greater than 0.05.
+
+__Creation of Scatter Plots with Regression Lines to Visualize Relationships:__
+```{r}
+#| fig.width: 18
+#| fig.height: 12
+#| text-overflow: wrap
+library(gridExtra)
+library(ggplot2)
+
+
+plots <- list()
+for (var in predictor_vars) {
+
+  # Create scatter plot with respective regression line
+  p <- ggplot(Boston, aes(x = .data[[var]], y = crim)) +
+    geom_point(alpha = 0.3) +
+    geom_smooth(method = "lm", se = FALSE, color = "blue") +
+    labs(title = paste("Simple Linear Regression of crim on", var),
+         x = var,
+         y = "crim")
+  plots[[length(plots) + 1]] <- p
+}
+
+grid.arrange(grobs = plots, ncol = 4, nrow = 3, top = "Simple Linear Regression: crim vs predictors")
+```
+
+(b) Fit a multiple regression model to predict the response using
+all of the predictors. Describe your results. For which predictors
+can we reject the null hypothesis H0 : βj = 0?
+
+```{r}
+# Fit multiple regression model
+multiple_lm <- lm(crim ~ ., data = Boston)
+multiple_lm_summary <- summary(multiple_lm)
+multiple_lm_summary
+```
+At the 0.05 significance level we can reject the null hypothesis H0 : βj = 0 for the following predictors based on their p-values:
+* `zn` w/ p-value 0.015
+* `dis` w/ p-value < 0.001
+* `rad` w/ p-value < 0.001
+* `medv` w/ p-value < 0.001
+
+(c) How do your results from (a) compare to your results from (b)?
+Create a plot displaying the univariate regression coeﬀicients
+from (a) on the x-axis, and the multiple regression coeﬀicients
+from (b) on the y-axis. That is, each predictor is displayed as a
+single point in the plot. Its coeﬀicient in a simple linear regres-
+sion model is shown on the x-axis , and its coeﬀicient estimate
+in the multiple linear regression model is shown on the y-axis.
+
+```{r}
+#| code-overflow: wrap
+
+# Simple regression coefficients (from part a)
+simple_coefs <- model_results %>%
+  select(predictor, estimate) %>%
+  rename(simple_coef = estimate)
+
+# Multiple regression coefficients (from part b)
+multiple_coefs <- coef(multiple_lm)[-1]  # drop intercept
+
+multiple_coefs_df <- data.frame(
+  predictor = names(multiple_coefs),
+  multiple_coef = as.numeric(multiple_coefs)
+)
+
+# Merge so predictors line up correctly, I think they are already organized by this is just to be safe
+coef_comparison <- left_join(simple_coefs, multiple_coefs_df, by = "predictor")
+
+ggplot(coef_comparison, aes(x = simple_coef, y = multiple_coef)) +
+  geom_point(size = 2) +
+  # adding identity line for reference
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "grey") + 
+  ggrepel::geom_text_repel(aes(label = predictor),
+                         size = 3,
+                         max.overlaps = Inf,
+                         min.segment.length = 0,
+                         segment.color = NA) + 
+  labs(
+    title = "Univariate vs Multiple Regression Coefficients",
+    x = "Simple Regression Coefficients",
+    y = "Multiple Regression Coefficients"
+  ) +
+  theme_minimal()
+```
+
+We can identify a clustering of points for both multiple and single regression coefficients near zero. For most of the points clustered around zero, the direction of association is preserved. However, some predictors exhibit change in the direction of association when moving from simple to multiple regression, indicating that the relationship between these predictors and the response variable is influenced by other variables in the model. ('nox`, `zn`, and `rm`) This suggests that these predictors may have confounding relationships with other variables in the data set.
+
+Additionally, the magnitudes of coefficients tend to be smaller in the multiple regression model compared to the simple regression model. This is likely due to the fact that in multiple regression, the effect of each predictor is adjusted for the presence of other predictors, which can lead to a reduction in the estimated effect size. Overall, the plot depicts how the relationships between predictors and the response variable can change when considering multiple predictors simultaneously. (due to relationships among predictors)
+
+(d) Is there evidence of non-linear association between any of the
+predictors and the response? To answer this question, for each
+predictor X, fit a model of the form
+Y = β0 + β1 X + β2X 2 + β3 X 3 + ϵ.
+
+```{r}
+#| code-overflow: wrap
+predictor_vars <- colnames(Boston)[2:13] # Exclude 'crim' which is the response
+
+# Save model summaries and obtain relevant statistics
+non_linear_lm <- list()
+rows <- vector("list", length(predictor_vars))
+names(rows) <- predictor_vars
+
+for (var in predictor_vars) { 
+
+# usage of I() to denote arithmetic operations
+  model <- lm(reformulate(paste0(var, "+ I(", var, "^2) + I(", var, "^3)"), response = "crim"), data = Boston)
+  non_linear_lm[[var]] <- summary(model)
+}
+
+# Note it may be prudent to remove chas from consideration since it is a binary variable
+
+print(non_linear_lm)
+```
+
+__From the model summaries obtained above__, we assess evidence of non-linear association between the predictors and the response variable `crim` by examining the significance of the coefficients for the squared and cubic terms (i.e., β2 and β3) at the 0.05 significance level. We find evidence of non-linearity for `indus`, `nox`, `dis`, `ptratio`, and `medv`, as both their squared and cubic terms are statistically significant. In addition, `age` also exhibits evidence of non-linearity through a significant squared and cubic term, despite the linear term not being significant under this model specification.
+
+
+## Bonus question (Extra credits)
+
+For multiple linear regression, show that $R^2$ is equal to the correlation between the response vector $\mathbf{y} = (y_1, \ldots, y_n)^T$ and the fitted values $\hat{\mathbf{y}} = (\hat y_1, \ldots, \hat y_n)^T$. That is
+$$
+R^2 = 1 - \frac{\text{RSS}}{\text{TSS}} = [\operatorname{Cor}(\mathbf{y}, \hat{\mathbf{y}})]^2.
+$$
+
