@@ -1,0 +1,217 @@
+---
+title: "Biostat 212a Homework 2"
+subtitle: "Due Feb 11, 2026 @ 11:59PM"
+author: "YOUR NAME and UID"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    number-sections: true
+    toc: true
+    toc-depth: 4
+    toc-location: left
+    code-fold: false
+engine: knitr
+knitr:
+  opts_chunk: 
+    fig.align: 'center'
+    # fig.width: 6
+    # fig.height: 4
+    message: FALSE
+    cache: false
+---
+
+## ISL Exercise 4.8.1 (10pts)
+Using a little bit of algebra, prove that (4.2) is equivalent to (4.3). In
+other words, the logistic function representation and logit represen-
+tation for the logistic regression model are equivalent.
+
+logistic func: 
+p(X) = e^(β0+β1X) / [1 + e^(β0+β1X)]
+
+logit func:
+p(X) / [1 - p(X)] = e^(β0 + β1X)
+log(p(X) / [1 - p(X)]) = β0 + β1X
+
+## ISL Exercise 4.8.6 (10pts)
+
+Suppose we collect data for a group of students in a statistics class
+with variables X1 = hours studied, X2 = undergrad GPA, and Y =
+receive an A. We fit a logistic regression and produce estimated
+coefficient, βˆ0 = −6, βˆ1 = 0.05, βˆ2 = 1.
+
+(a) Estimate the probability that a student who studies for 40 h and
+has an undergrad GPA of 3.5 gets an A in the class.
+(b) How many hours would the student in part (a) need to study to
+have a 50 % chance of getting an A in the class?
+
+## ISL Exercise 4.8.9 (10pts)
+
+This problem has to do with odds.
+(a) On average, what fraction of people with an odds of 0.37 of
+defaulting on their credit card payment will in fact default?
+(b) Suppose that an individual has a 16 % chance of defaulting on 
+her credit card payment. What are the odds that she will de-
+fault?
+
+## ISL Exercise 4.8.13 (a)-(i) (50pts) [applied question]
+
+13. This question should be answered using the Weekly data set, which
+is part of the ISLR2 package. This data is similar in nature to the
+Smarket data from this chapter’s lab, except that it contains 1, 089
+weekly returns for 21 years, from the beginning of 1990 to the end of
+2010.
+
+```{r}
+library(ISLR2)
+library(tidyverse)
+library(ggplot2)
+```
+
+```{r}
+# load the data and take a look at the first few rows
+ISLR2::Weekly %>% head()
+```
+
+(a) Produce some numerical and graphical summaries of the Weekly
+data. Do there appear to be any patterns?
+
+```{r}
+# numerical summaries
+Weekly %>%  summary()
+```
+```{r}
+# graphical summaries; leave out the Direction variable for now
+pair(Weekly[, -9], pch = 20, cex.labels = 0.7, font.labels = 1) # pairwise scatterplots of the predictors
+
+# manually
+Weekly %>%  ggplot(aes(x = Lag1, y = Lag2, color = Direction)) +
+  geom_point() +
+  labs(title = "Lag1 vs Lag2 colored by Direction")
+```
+```{r}
+library(GGally)
+ggpairs(Weekly[, -9], aes(color = Direction)) # pairwise scatterplots with color by Direction
+```
+
+(b) Use the full data set to perform a logistic regression with
+Direction as the response and the five lag variables plus Volume
+as predictors. Use the summary function to print the results. Do
+any of the predictors appear to be statistically significant? If so,
+which ones?
+
+```{r}
+# fitting logistic regression model with Direction as response and Lag1, Lag2, Lag3, Lag4, Lag5, Volume as predictors
+logistic_model <- glm(Direction ~ Lag1 + Lag2 + Lag3 + Lag4 + Lag5 + Volume, data = Weekly, family = binomial)
+summary(logistic_model)
+```
+
+The predictors that appear to be statistically significant are___
+
+
+(c) Compute the confusion matrix and overall fraction of correct
+predictions. Explain what the confusion matrix is telling you
+about the types of mistakes made by logistic regression.
+
+https://www.digitalocean.com/community/tutorials/confusion-matrix-in-r
+```{r}
+library(caret)
+# predict the probabilities of the positive class (Up) using the logistic regression model
+confusion_matrix <- confusionMatrix(data = predict(logistic_model, type = "response") > 0.5, reference = Weekly$Direction)
+
+# accyuracy of the model (overall fraction of correct predictions)
+model_accuracy <- confusion_matrix$overall['Accuracy']
+model_accuracy_manual <- sum(diag(confusion_matrix$table)) / sum(confusion_matrix$table)
+```
+
+(d) Now fit the logistic regression model using a training data period
+from 1990 to 2008, with Lag2 as the only predictor. Compute the
+confusion matrix and the overall fraction of correct predictions
+for the held out data (that is, the data from 2009 and 2010).
+
+* Lag2 as the only predictor
+* training data period from 1990 to 2008
+* held out data from 2009 and 2010
+
+
+(e) Repeat (d) using LDA.
+(f) Repeat (d) using QDA.
+(g) Repeat (d) using KNN with K = 1.
+(h) Repeat (d) using naive Bayes.
+
+(i) Which of these methods appears to provide the best results on
+this data?
+
+The method that appears to provide the best results on this data is___
+
+## Bonus question: ISL Exercise 4.8.13 Part (j) (30pts)
+
+(j) Experiment with different combinations of predictors, includ-
+ing possible transformations and interactions, for each of the
+
+methods. Report the variables, method, and associated confu-
+sion matrix that appears to provide the best results on the held
+
+out data. Note that you should also experiment with values for
+K in the KNN classifier.
+
+## Bonus question: ISL Exercise 4.8.4 (30pts)
+
+When the number of features p is large, there tends to be a deteri-
+oration in the performance of KNN and other local approaches that
+perform prediction using only observations that are near the test ob-
+servation for which a prediction must be made. 
+
+This phenomenon isknown as the curse of dimensionality, and it ties into the fact that non-parametric approaches 
+often perform poorly when p is large. We will now investigate this curse.
+
+(a) Suppose that we have a set of observations, each with measure-
+ments on p = 1 feature, X. We assume that X is uniformly
+
+(evenly) distributed on [0, 1]. Associated with each observation
+
+is a response value. Suppose that we wish to predict a test obser-
+vation’s response using only observations that are within 10 % of
+
+the range of X closest to that test observation. For instance, in
+order to predict the response for a test observation with X = 0.6,
+we will use observations in the range [0.55, 0.65]. On average,
+what fraction of the available observations will we use to make
+the prediction?
+(b) Now suppose that we have a set of observations, each with
+measurements on p = 2 features, X1 and X2. We assume that
+(X1, X2) are uniformly distributed on [0, 1] × [0, 1]. We wish to
+predict a test observation’s response using only observations that
+are within 10 % of the range of X1 and within 10 % of the range
+of X2 closest to that test observation. For instance, in order to
+predict the response for a test observation with X1 = 0.6 and
+X2 = 0.35, we will use observations in the range [0.55, 0.65] for
+X1 and in the range [0.3, 0.4] for X2. On average, what fraction
+of the available observations will we use to make the prediction?
+
+(c) Now suppose that we have a set of observations on p = 100 fea-
+tures. Again the observations are uniformly distributed on each
+
+feature, and again each feature ranges in value from 0 to 1. We
+wish to predict a test observation’s response using observations
+within the 10 % of each feature’s range that is closest to that test
+observation. What fraction of the available observations will we
+use to make the prediction?
+(d) Using your answers to parts (a)–(c), argue that a drawback of
+
+KNN when p is large is that there are very few training obser-
+vations “near” any given test observation.
+
+(e) Now suppose that we wish to make a prediction for a test obser-
+vation by creating a p-dimensional hypercube centered around
+
+the test observation that contains, on average, 10 % of the train-
+ing observations. For p = 1, 2, and 100, what is the length of
+
+each side of the hypercube? Comment on your answer.
+
+Note: A hypercube is a generalization of a cube to an arbitrary
+number of dimensions. When p = 1, a hypercube is simply a line
+segment, when p = 2 it is a square, and when p = 100 it is a
+100-dimensional cube.
