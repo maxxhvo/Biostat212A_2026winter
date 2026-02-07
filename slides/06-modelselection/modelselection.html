@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Dr. Jin Zhou @ UCLA">
-<meta name="dcterms.date" content="2026-02-03">
+<meta name="dcterms.date" content="2026-02-07">
 
 <title>Linear Model Selection and Regularization (ISL 6)</title>
 <style>
@@ -2403,7 +2403,7 @@ window.Quarto = {
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">February 3, 2026</p>
+      <p class="date">February 7, 2026</p>
     </div>
   </div>
   
@@ -4520,7 +4520,12 @@ Figure 17: The lasso was performed with <span class="math inline">\(n = 100\)</
 <li>the test error tends to increase as the dimensionality of the problem (i.e. the number of features or predictors) increases, unless the additional features are truly associated with the response - “curse of dimensionality”</li>
 </ul></li>
 <li>In general, adding additional signal features that are truly associated with the response will improve the fitted model, i.e., a reduction in test set error.</li>
-<li>However, adding noise features that are not truly associated with the response will lead to a deterioration in the fitted model, and consequently an increased test set error.</li>
+<li>However, adding noise features that are not truly associated with the response will lead to a deterioration in the fitted model, and consequently an increased test set error.
+<ul>
+<li>In linear regression, the expected difference between the train and the test error is <span class="math display">\[
+\mathbb{E}[\text{MSE}_{\text{test}} - \text{MSE}_{\text{train}}] = 2 \sigma^2 \frac{p}{n},
+\]</span> where <span class="math inline">\(\sigma^2\)</span> is the variance of the error term <span class="math inline">\(\epsilon\)</span> in the linear regression model. Hence, as <span class="math inline">\(p\)</span> increases, the expected test error increases relative to the training error.</li>
+</ul></li>
 </ul>
 </section>
 <section id="summary" class="level2" data-number="8">
