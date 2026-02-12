@@ -22,6 +22,8 @@ knitr:
     cache: false
 ---
 
+__NOTE__: The Screenshots/ directory contains pdfs of the relevant exercises which might be higher quality than the inserted screenshot images.
+
 ## ISL Exercise 4.8.1 (10pts)
 Using a little bit of algebra, prove that (4.2) is equivalent to (4.3). In
 other words, the logistic function representation and logit represen-
@@ -128,7 +130,7 @@ ggpairs(Weekly, columns = 1:8, aes(color = Direction, alpha = 0.5),
         upper = list(continuous = wrap("cor", size = 3))) # pairwise scatterplots with color by Direction
 ```
 
-From the Pairwise scatterplots, and manual plotting of interesting patterns (or shapes of the data), we see that there may exist a logistic relationship between Year and Volume. Furthermore, when we use GGally's ggpairs function to look at pairwise scatterplots of the predictors colored by Direction, we see there is a clear relationship between the `Today` variable and the `Direction` variable, as the points are clearly separated by color (Direction) along the Today axis.
+From the Pairwise scatterplots, and manual plotting of interesting patterns (or shapes of the data), we see that there may exist a logistic relationship between Year and Volume. Furthermore, when we use GGally's ggpairs function to look at pairwise scatterplots of the predictors colored by Direction, we see there is a clear (and expected as `Direction` is the sign of `Today`) relationship between the `Today` variable and the `Direction` variable, as the points are clearly separated by color (Direction) along the Today axis.
 
 Additionally, there seems to be little correlation be little correlation between Lag# variables with other Lag# variables and with Year. (spread of points across a roughly horizontal line) For Lag# against Volume, there seems to be little variation in Volume across possible vaalues of Lag#. (the spread of points around a roughly vertical line)
 
@@ -209,7 +211,7 @@ for the held out data (that is, the data from 2009 and 2010).
 * held out data from 2009 and 2010
 
 ```{r}
-# sort the data by Year
+# filter dplyr does not require sorting but, it makes it easier to visualize
 Weekly_sorted <- Weekly %>% arrange(Year)
 
 # split data by specified criteria for training and testing
@@ -234,7 +236,7 @@ confusion_matrix_test <- confusionMatrix(data = predicted_direction_test,
 confusion_matrix_test
 ```
 
-The overall fraction of correct predictions for the held out data which can be represented as [TP+TN] / [TP + TN + FP + FN] or model accuracyis 0.625, which is the accuracy of the model using the training data (1990-2008) to predict the test data (2009-2010) using Lag2 as the only predictor.
+The overall fraction of correct predictions for the held out data which can be represented as [TP+TN] / [TP + TN + FP + FN] or model accuracy is 0.625, which is the accuracy of the model using the training data (1990-2008) to predict the test data (2009-2010) using Lag2 as the only predictor.
 
 ### (e) Repeat (d) using LDA.
 ```{r}
@@ -245,57 +247,111 @@ library(MASS)
 ```{r}
 # fit LDA model w/ Lag2 as the only predictor on the training data
 lda_lag2 <- lda(Direction ~ Lag2, data = train_data)
-summary(lda_lag2)
+lda_lag2
 ```
+```{r}
+# predict on the test data using the fitted LDA model
+
+# whearas predict.glm returns a numeric vector of probabilities, predict.lda returns a factor variable with predicted class labels and posterior probabilities for each class
+lda_predictions <- predict(lda_lag2, newdata = test_data)
+predicted_direction_lda <- lda_predictions$class
+confusion_matrix_lda <- confusionMatrix(data = predicted_direction_lda,
+                                       reference = test_data$Direction,
+                                       positive = "Up")
+confusion_matrix_lda
+```
+
+The overall fraction of correct predictions for the held out data using LDA with Lag2 as the only predictor is 0.625, which is the same as the accuracy obtained from logistic regression in part (d). Moreover, the TP, TN, FP, and FN values are also the same for both models, indicating that both logistic regression and LDA made the same predictions on the test data when using Lag2 as the only predictor.
 
 ### (f) Repeat (d) using QDA.
 
-qda is also available in the MASS package
+QDA is also available in the MASS package, and has a similar workflow to LDA.
+```{r}
+# fit QDA model w/ Lag2 as the only predictor on the training data
+qda_lag2 <- qda(Direction ~ Lag2, data = train_data)
+qda_lag2
+```
+```{r}
+# predict on the test data using the fitted QDA model
+qda_predictions <- predict(qda_lag2, newdata = test_data)
+predicted_direction_qda <- qda_predictions$class
+confusion_matrix_qda <- confusionMatrix(data = predicted_direction_qda,
+                                       reference = test_data$Direction,
+                                       positive = "Up")
+confusion_matrix_qda
+```
 
+The overall fraction of correct predictions for the held out data using QDA with Lag2 as the only predictor is approximately 0.587, which is lower than the accuracy obtained from logistic regression and LDA in part (d) and (e). In actuality, the QDA model performs much worse as it predicts "Up" for all test observations, which means although it correctly identifies all "Up" weeks (TP = 61), it fails to identify any "Down" weeks (TN = 0), resulting in a high number of false positives (FP = 43) and no true negatives (TN = 0). This leads to a lower overall accuracy compared to the logistic regression and LDA models.
 
 ### (g) Repeat (d) using KNN with K = 1.
+
+Utilize `class` package for simple KNN. (could also use `caret`)
+
+```{r}
+library(class)
+
+# knn expects the training and test data to be in matrix or data frame format, and the class labels to be a factor variable.
+knn_predictions <- knn(train = data.frame(train_data$Lag2),
+                       test = data.frame(test_data$Lag2),
+                       cl = train_data$Direction, k = 1)
+confusion_matrix_knn <- confusionMatrix(data = knn_predictions,
+                                       reference = test_data$Direction,
+                                       positive = "Up")
+confusion_matrix_knn
+```
+
+The overall fraction of correct predictions for the held out data using KNN with K = 1 and Lag2 as the onle predictor is approximately 0.51. The KNN model performs the worst among the models, with higher specificity than LDA/logistic regression but much lower sensitivity, as the model at K = 1 is very sensitive to noise. As such the model generates a large number of false negatives and false positives. 
+
 ### (h) Repeat (d) using naive Bayes.
+
+```{r}
+# load in the e1071 package for naive Bayes
+library(e1071)
+```
+
+```{r}
+# fit naive Bayes model w/ Lag2 as the only predictor on the training data
+naive_bayes_lag2 <- naiveBayes(Direction ~ Lag2, data = train_data)
+naive_bayes_lag2
+```
+```{r}
+# predict on the test data using the fitted naive Bayes model
+# predict.naiveBayes returns also returns a factor variable with predicted class labels and posterior probabilities for each class
+naive_bayes_predictions <- predict(naive_bayes_lag2, newdata = test_data)
+confusion_matrix_nb <- confusionMatrix(data = naive_bayes_predictions,
+                                      reference = test_data$Direction,
+                                      positive = "Up")
+confusion_matrix_nb
+```
+
+Naive Bayes with Lag2 as the only predictor performs identically to QDA, with an accuracy of approximately 0.587. Both models predict "Up" for all test observations, resulting in TP = 61, TN = 0, FP = 43, and FN = 0. This indicates that the Naive Bayes model, like QDA, is unable to correctly identify any "Down" weeks in the test data.
+
+Conducting research to understand why this happens, it turns out QDA with a single continuous predictor fits a seperate means and variance for each class which is equivalent to QDA does with a single continuous predictor.
 
 ### (i) 
 Which of these methods appears to provide the best results on
 this data?
 
-The method that appears to provide the best results on this data is___
+The method that appears to provide the best results on this data is Logistic Regression and LDA (both performing identically in this case) with an accuracy of approximately 0.625. Both Logistic Regression and LDA correctly identify a higher number of "Up" weeks (TP = 61) while also correctly identifying some "Down" weeks (TN = 12), leading to a better balance between sensitivity and specificity compared to the other models. QDA and Naive Bayes failed to identify any "Down" weeks, resulting in a lower overall accuracy, while KNN with K = 1 pis a bad choice for this data due to it creating a decision boundary that is too flexible, leading to overfitting and poor generalization to the test data.
 
 ## Bonus question: ISL Exercise 4.8.13 Part (j) (30pts)
 
-(j) Experiment with different combinations of predictors, includ-
-ing possible transformations and interactions, for each of the
-
-methods. Report the variables, method, and associated confu-
-sion matrix that appears to provide the best results on the held
-
-out data. Note that you should also experiment with values for
-K in the KNN classifier.
+(j) Experiment with different combinations of predictors, including possible transformations and interactions, for each of the methods. Report the variables, method, and associated confusion matrix that appears to provide the best results on the held out data. Note that you should also experiment with values for K in the KNN classifier.
 
 ## Bonus question: ISL Exercise 4.8.4 (30pts)
 
-When the number of features p is large, there tends to be a deteri-
-oration in the performance of KNN and other local approaches that
-perform prediction using only observations that are near the test ob-
-servation for which a prediction must be made. 
+When the number of features p is large, there tends to be a deterioration in the performance of KNN and other local approaches that perform prediction using only observations that are near the test observation for which a prediction must be made. 
 
-This phenomenon isknown as the curse of dimensionality, and it ties into the fact that non-parametric approaches 
-often perform poorly when p is large. We will now investigate this curse.
+This phenomenon isknown as the curse of dimensionality, and it ties into the fact that non-parametric approaches often perform poorly when p is large. We will now investigate this curse.
 
 (a) Suppose that we have a set of observations, each with measure-
-ments on p = 1 feature, X. We assume that X is uniformly
-
-(evenly) distributed on [0, 1]. Associated with each observation
-
-is a response value. Suppose that we wish to predict a test obser-
-vation’s response using only observations that are within 10 % of
-
-the range of X closest to that test observation. For instance, in
-order to predict the response for a test observation with X = 0.6,
+ments on p = 1 feature, X. We assume that X is uniformly (evenly) distributed on [0, 1]. Associated with each observation is a response value. Suppose that we wish to predict a test observation’s response using only observations that are within 10 % of the range of X closest to that test observation. For instance, in order to predict the response for a test observation with X = 0.6,
 we will use observations in the range [0.55, 0.65]. On average,
 what fraction of the available observations will we use to make
 the prediction?
+
+![](Screenshots/a.png)
+
 (b) Now suppose that we have a set of observations, each with
 measurements on p = 2 features, X1 and X2. We assume that
 (X1, X2) are uniformly distributed on [0, 1] × [0, 1]. We wish to
@@ -307,28 +363,21 @@ X2 = 0.35, we will use observations in the range [0.55, 0.65] for
 X1 and in the range [0.3, 0.4] for X2. On average, what fraction
 of the available observations will we use to make the prediction?
 
-(c) Now suppose that we have a set of observations on p = 100 fea-
-tures. Again the observations are uniformly distributed on each
+![](Screenshots/b.png)
 
-feature, and again each feature ranges in value from 0 to 1. We
-wish to predict a test observation’s response using observations
-within the 10 % of each feature’s range that is closest to that test
-observation. What fraction of the available observations will we
-use to make the prediction?
-(d) Using your answers to parts (a)–(c), argue that a drawback of
+(c) Now suppose that we have a set of observations on p = 100 features. Again the observations are uniformly distributed on each feature, and again each feature ranges in value from 0 to 1. We wish to predict a test observation’s response using observations within the 10 % of each feature’s range that is closest to that test observation. What fraction of the available observations will we use to make the prediction?
 
-KNN when p is large is that there are very few training obser-
-vations “near” any given test observation.
+![](Screenshots/c.png)
 
-(e) Now suppose that we wish to make a prediction for a test obser-
-vation by creating a p-dimensional hypercube centered around
+(d) Using your answers to parts (a)–(c), argue that a drawback of KNN when p is large is that there are very few training observations “near” any given test observation.
 
-the test observation that contains, on average, 10 % of the train-
-ing observations. For p = 1, 2, and 100, what is the length of
+![](Screenshots/d.png)
 
-each side of the hypercube? Comment on your answer.
+(e) Now suppose that we wish to make a prediction for a test observation by creating a p-dimensional hypercube centered around the test observation that contains, on average, 10 % of the training observations. For p = 1, 2, and 100, what is the length of each side of the hypercube? Comment on your answer.
 
 Note: A hypercube is a generalization of a cube to an arbitrary
 number of dimensions. When p = 1, a hypercube is simply a line
 segment, when p = 2 it is a square, and when p = 100 it is a
-100-dimensional cube.
+100-dimensional cube. 
+
+![](Screenshots/e.png)
