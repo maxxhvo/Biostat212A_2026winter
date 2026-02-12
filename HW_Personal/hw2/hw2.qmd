@@ -27,24 +27,28 @@ Using a little bit of algebra, prove that (4.2) is equivalent to (4.3). In
 other words, the logistic function representation and logit represen-
 tation for the logistic regression model are equivalent.
 
-logistic func: 
-p(X) = e^(β0+β1X) / [1 + e^(β0+β1X)]
+**Logistic function (4.2):**
+$$p(X) = \frac{e^{\beta_0 + \beta_1 X}}{1 + e^{\beta_0 + \beta_1 X}}$$
 
-logit func:
-p(X) / [1 - p(X)] = e^(β0 + β1X)
-log(p(X) / [1 - p(X)]) = β0 + β1X
+**Logit function (4.3):**
+$$\frac{p(X)}{1 - p(X)} = e^{\beta_0 + \beta_1 X}$$
+$$\log\left(\frac{p(X)}{1 - p(X)}\right) = \beta_0 + \beta_1 X$$
+
+![](Screenshots/4.8.1.png)
 
 ## ISL Exercise 4.8.6 (10pts)
 
 Suppose we collect data for a group of students in a statistics class
 with variables X1 = hours studied, X2 = undergrad GPA, and Y =
 receive an A. We fit a logistic regression and produce estimated
-coefficient, βˆ0 = −6, βˆ1 = 0.05, βˆ2 = 1.
+coefficient, $\hat{\beta}_0 = −6, \hat{\beta}_1 = 0.05, \hat{\beta}_2 = 1$.
 
 (a) Estimate the probability that a student who studies for 40 h and
 has an undergrad GPA of 3.5 gets an A in the class.
 (b) How many hours would the student in part (a) need to study to
 have a 50 % chance of getting an A in the class?
+
+![](Screenshots/4.8.6.png)
 
 ## ISL Exercise 4.8.9 (10pts)
 
@@ -55,15 +59,21 @@ defaulting on their credit card payment will in fact default?
 her credit card payment. What are the odds that she will de-
 fault?
 
+![](Screenshots/4.8.9.png)
+
+---
+
 ## ISL Exercise 4.8.13 (a)-(i) (50pts) [applied question]
 
-13. This question should be answered using the Weekly data set, which
+This question should be answered using the Weekly data set, which
 is part of the ISLR2 package. This data is similar in nature to the
-Smarket data from this chapter’s lab, except that it contains 1, 089
+Smarket data from this chapter’s lab, except that it contains 1,089
 weekly returns for 21 years, from the beginning of 1990 to the end of
 2010.
 
 ```{r}
+#| label: setup
+
 library(ISLR2)
 library(tidyverse)
 library(ggplot2)
@@ -74,7 +84,8 @@ library(ggplot2)
 ISLR2::Weekly %>% head()
 ```
 
-(a) Produce some numerical and graphical summaries of the Weekly
+### (a) 
+Produce some numerical and graphical summaries of the Weekly
 data. Do there appear to be any patterns?
 
 ```{r}
@@ -82,50 +93,113 @@ data. Do there appear to be any patterns?
 Weekly %>%  summary()
 ```
 ```{r}
-# graphical summaries; leave out the Direction variable for now
-pair(Weekly[, -9], pch = 20, cex.labels = 0.7, font.labels = 1) # pairwise scatterplots of the predictors
+#| cache: true
 
-# manually
-Weekly %>%  ggplot(aes(x = Lag1, y = Lag2, color = Direction)) +
+# graphical summaries; leave out the Direction variable since it is binary
+
+# pairwise scatterplots of the predictors
+pairs(Weekly[, -9], pch = 20, cex.labels = 1.5, font.labels = 2,
+      gap = 0.3, oma = c(2, 2, 2, 2),
+      labels = colnames(Weekly[, -9]))
+
+# Manual Scatterplot of Lag1 vs Lag2 colored by Direction
+Weekly %>%  ggplot(aes(x = Year, y = Volume, color = Direction)) +
   geom_point() +
-  labs(title = "Lag1 vs Lag2 colored by Direction")
+  labs(title = "Year vs Volume colored by Direction: Identify an Exponential Pattern")
 ```
 ```{r}
+#| cache: true
+
+# additional manual plots to look at patterns
+Weekly %>%  ggplot(aes(x = Year, y = Lag1, color = Direction)) +
+  geom_point() +
+  labs(title = "Year vs Lag1 colored by Direction")
+
+Weekly %>%  ggplot(aes(x = Lag1, y = Volume, color = Direction)) +
+  geom_point() +
+  labs(title = "Lag1 vs Volume colored by Direction")
+```
+```{r}
+#| cache: true
+
 library(GGally)
-ggpairs(Weekly[, -9], aes(color = Direction)) # pairwise scatterplots with color by Direction
+ggpairs(Weekly, columns = 1:8, aes(color = Direction, alpha = 0.5),
+        lower = list(continuous = wrap("points", alpha = 0.3, size = 0.5)),
+        upper = list(continuous = wrap("cor", size = 3))) # pairwise scatterplots with color by Direction
 ```
 
-(b) Use the full data set to perform a logistic regression with
+From the Pairwise scatterplots, and manual plotting of interesting patterns (or shapes of the data), we see that there may exist a logistic relationship between Year and Volume. Furthermore, when we use GGally's ggpairs function to look at pairwise scatterplots of the predictors colored by Direction, we see there is a clear relationship between the `Today` variable and the `Direction` variable, as the points are clearly separated by color (Direction) along the Today axis.
+
+Additionally, there seems to be little correlation be little correlation between Lag# variables with other Lag# variables and with Year. (spread of points across a roughly horizontal line) For Lag# against Volume, there seems to be little variation in Volume across possible vaalues of Lag#. (the spread of points around a roughly vertical line)
+
+### (b) 
+Use the full data set to perform a logistic regression with
 Direction as the response and the five lag variables plus Volume
 as predictors. Use the summary function to print the results. Do
 any of the predictors appear to be statistically significant? If so,
 which ones?
 
 ```{r}
+#| eval: true
+
 # fitting logistic regression model with Direction as response and Lag1, Lag2, Lag3, Lag4, Lag5, Volume as predictors
 logistic_model <- glm(Direction ~ Lag1 + Lag2 + Lag3 + Lag4 + Lag5 + Volume, data = Weekly, family = binomial)
 summary(logistic_model)
 ```
 
-The predictors that appear to be statistically significant are___
+The predictor that appears to be statistically significant in the logistic regression model with `Direction` as the response and the five lag variables plus `Volume` as predictors is `Lag2` at the 0.05 significance level (p-value = 0.0296). 
+
+NOTE: if we also include `Today` as a predictor, then `Today` is also statistically significant at the 0.05 significance level.
 
 
-(c) Compute the confusion matrix and overall fraction of correct
+### (c) 
+Compute the confusion matrix and overall fraction of correct
 predictions. Explain what the confusion matrix is telling you
 about the types of mistakes made by logistic regression.
 
 https://www.digitalocean.com/community/tutorials/confusion-matrix-in-r
+
 ```{r}
 library(caret)
-# predict the probabilities of the positive class (Up) using the logistic regression model
-confusion_matrix <- confusionMatrix(data = predict(logistic_model, type = "response") > 0.5, reference = Weekly$Direction)
 
-# accyuracy of the model (overall fraction of correct predictions)
+# predict the probabilities of the positive class (Up) using the logistic regression model
+probs <- predict(logistic_model, type = "response")
+
+# convert probabilities to factor class labels using 0.5 threshold
+# 0.5 is a loigical decision boundary: if P > 0.5, classify as "Up", else "Down"
+predicted_direction <- factor(ifelse(probs > 0.5, "Up", "Down"),
+                              levels = levels(Weekly$Direction))
+
+# the data must be treated this way, since the confusionMatrix function expects factor variables with the same levels for both data and reference
+confusion_matrix <- confusionMatrix(data = predicted_direction,
+                                    reference = Weekly$Direction,
+                                    positive = "Up")
+confusion_matrix
+
+# Extracting specifically the accuracy of the model (overall fraction of correct predictions)
 model_accuracy <- confusion_matrix$overall['Accuracy']
-model_accuracy_manual <- sum(diag(confusion_matrix$table)) / sum(confusion_matrix$table)
+model_accuracy
 ```
 
-(d) Now fit the logistic regression model using a training data period
+Note that execution of the confusion_matrix object prints out both the confusion matrix table and relevant statistics such as accuracy, sensitivity, and specificity. We can also calculate other statuistics:
+
+If we consider the "Up" class as the positive class, then we can calculate the following statistics Manually:
+
+* TPR (Sensitivity) = TP / (TP + FN) = 557 / (557 + 48) = 0.921
+* TNR (Specificity) = TN / (TN + FP) = 54 / (54 + 430) = 0.112
+* FPR = FP / (FP + TN) = 430 / (430 + 54) = 0.888
+* FNR = FN / (TP + FN) = 48 / (557 + 48) = 0.079
+* Positive Predictive Value (PPV) = TP / (TP + FP) = 557 / (557 + 430) = 0.564
+* Negative Predictive Value (NPV) = TN / (TN + FN) = 54 / (54 + 48) = 0.529
+
+These values tell us that the logistic regression model is very good at correctly identifying "Up" weeks (high sensitivity), but it is not good at correctly identifying "Down" weeks (low specificity). The model has a high false positive rate, meaning that it often incorrectly predicts "Up" when the actual outcome is "Down". Inversly, low false negative rate indicates that the model is good at correctly identifying "Up" weeks, but the high false positive rate indicates that it struggles to correctly identify "Down" weeks.
+
+The positive predictive value (accuracy/precision) indicates that when the model predicts "Up", it is correct about 56.4% of the time, while the negative predictive value indicates that when the model predicts "Down", it is correct about 52.9% of the time.
+
+This reflects the fact that the model has a bias towards predicting "Up" weeks, which may be due to the imbalance in the dataset (more "Up" weeks than "Down" weeks) or due to the nature of the predictors used in the logistic model.
+
+### (d) 
+Now fit the logistic regression model using a training data period
 from 1990 to 2008, with Lag2 as the only predictor. Compute the
 confusion matrix and the overall fraction of correct predictions
 for the held out data (that is, the data from 2009 and 2010).
@@ -134,13 +208,56 @@ for the held out data (that is, the data from 2009 and 2010).
 * training data period from 1990 to 2008
 * held out data from 2009 and 2010
 
+```{r}
+# sort the data by Year
+Weekly_sorted <- Weekly %>% arrange(Year)
 
-(e) Repeat (d) using LDA.
-(f) Repeat (d) using QDA.
-(g) Repeat (d) using KNN with K = 1.
-(h) Repeat (d) using naive Bayes.
+# split data by specified criteria for training and testing
+train_data <- Weekly_sorted %>% filter(Year >= 1990 & Year <= 2008)
+test_data <- Weekly_sorted %>% filter(Year >= 2009 & Year <= 2010)
+```
+```{r}
+# fit logistic model w/ Lag2 as the only predictor on the training data
+logistic_model_lag2 <- glm(Direction ~ Lag2, data = train_data, family = binomial)
+summary(logistic_model_lag2)
+```
+```{r}
+# predict probabilities on the test data using the fitted model
 
-(i) Which of these methods appears to provide the best results on
+# use type = "response" since we want to set the probability-related threshold for classification (0.5) and not the log-odds threshold (0)
+probs_test <- predict(logistic_model_lag2, newdata = test_data, type = "response")
+predicted_direction_test <- factor(ifelse(probs_test > 0.5, "Up", "Down"),
+                                   levels = levels(test_data$Direction))
+confusion_matrix_test <- confusionMatrix(data = predicted_direction_test,
+                                         reference = test_data$Direction,
+                                         positive = "Up")
+confusion_matrix_test
+```
+
+The overall fraction of correct predictions for the held out data which can be represented as [TP+TN] / [TP + TN + FP + FN] or model accuracyis 0.625, which is the accuracy of the model using the training data (1990-2008) to predict the test data (2009-2010) using Lag2 as the only predictor.
+
+### (e) Repeat (d) using LDA.
+```{r}
+# load in the MASS package for LDA
+library(MASS)
+```
+
+```{r}
+# fit LDA model w/ Lag2 as the only predictor on the training data
+lda_lag2 <- lda(Direction ~ Lag2, data = train_data)
+summary(lda_lag2)
+```
+
+### (f) Repeat (d) using QDA.
+
+qda is also available in the MASS package
+
+
+### (g) Repeat (d) using KNN with K = 1.
+### (h) Repeat (d) using naive Bayes.
+
+### (i) 
+Which of these methods appears to provide the best results on
 this data?
 
 The method that appears to provide the best results on this data is___
