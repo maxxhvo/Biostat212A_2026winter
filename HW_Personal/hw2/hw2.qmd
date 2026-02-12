@@ -1,7 +1,7 @@
 ---
 title: "Biostat 212a Homework 2"
 subtitle: "Due Feb 11, 2026 @ 11:59PM"
-author: "YOUR NAME and UID"
+author: Max Vo ; 106784933
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 format:
   html:
@@ -337,6 +337,113 @@ The method that appears to provide the best results on this data is Logistic Reg
 ## Bonus question: ISL Exercise 4.8.13 Part (j) (30pts)
 
 (j) Experiment with different combinations of predictors, including possible transformations and interactions, for each of the methods. Report the variables, method, and associated confusion matrix that appears to provide the best results on the held out data. Note that you should also experiment with values for K in the KNN classifier.
+
+We cannot use the leaps package for subset selection since our problem is classification and not regression, but we can use the `caret` package to perform feature selection using recursive feature elimination (RFE) or other methods.
+
+```{r}
+# Direction is essentially just the sign of the Today variable, so we should eclude the Today variable from our predictors
+train_notoday <- train_data %>% dplyr::select(-Today)
+test_notoday <- test_data %>% dplyr::select(-Today)
+```
+```{r}
+# first trying on logistic regression since it performed well
+
+# Lag2 + interaction
+glm_1 <- glm(Direction ~ Lag2 * Lag1, data = train_notoday, family = binomial)
+
+# Lag2 + Lag2^2 (quadratic transformation)
+glm_2 <- glm(Direction ~ poly(Lag2, 2), data = train_notoday, family = binomial)
+
+# Multiple lags
+glm_3 <- glm(Direction ~ Lag1 + Lag2 + Lag3, data = train_notoday, family = binomial)
+
+# Lag2 with Volume interaction
+glm_4 <- glm(Direction ~ Lag2 * Volume, data = train_notoday, family = binomial)
+
+# Log transform of Volume
+glm_5 <- glm(Direction ~ Lag2 + log(Volume), data = train_notoday, family = binomial)
+```
+```{r}
+# function to evaluate glm model performance on test data
+eval_glm <- function(model, test_data){
+  probs <- predict(model, newdata = test_data, type = "response")
+  preds <- factor(ifelse(probs > 0.5, "Up", "Down"),
+                  levels = levels(test_data$Direction))
+  confusionMatrix(data = preds, reference = test_data$Direction, 
+                  positive = "Up")
+}
+
+cat("GLM 1: Lag2 * Lag1 interaction\n")
+print(eval_glm(glm_1, test_notoday)$overall['Accuracy'])
+
+cat("\nGLM 2: poly(Lag2, 2) quadratic transformation\n")
+print(eval_glm(glm_2, test_notoday)$overall['Accuracy'])
+
+cat("\nGLM 3: Lag1 + Lag2 + Lag3\n")
+print(eval_glm(glm_3, test_notoday)$overall['Accuracy'])
+
+cat("\nGLM 4: Lag2 * Volume interaction\n")
+print(eval_glm(glm_4, test_notoday)$overall['Accuracy'])
+
+cat("\nGLM 5: Lag2 + log(Volume)\n")
+print(eval_glm(glm_5, test_notoday)$overall['Accuracy'])
+```
+
+From this testing, we see that the model with the highest accuracy on the test data is GLM 2, which includes a quadratic transformation of Lag2. This model achieves an accuracy of approximately 0.625, which is the same as the original logistic regression model with only Lag2 as a predictor. However, the other models with interactions and multiple predictors did not improve the accuracy on the test data, indicating that they may be overfitting to the training data or that the additional predictors do not provide useful information for predicting the Direction variable. I did find the interasting quirk that taking the log of Volume as a predictor improves the model. (accuracy of GLM 5 is greater than GLM 4, but the model still performs worse than the original model with only Lag2 as a predictor)
+
+```{r}
+nrow(test_notoday)
+```
+```{r}
+# further exploration with KNN, using Lag2 only
+# Try different K values for KNN
+for (k in c(1, 3, 5, 10, 20, 50, 100)) {
+  knn_pred <- knn(train = data.frame(train_notoday$Lag2),
+                  test = data.frame(test_notoday$Lag2),
+                  cl = train_notoday$Direction, k = k)
+  acc <- mean(knn_pred == test_notoday$Direction)
+  cat("K =", k, "Accuracy =", round(acc, 4), "\n")
+}
+```
+I could create a function that loops through K values to find the optimal K value for KNN, but it appears that accuracy peaks at around K = 20 with an accuracy of approximately 0.61 which is still lower than logistic regression/KNN. Additionally, using 20 nearest neighbors is not ideal given that we only have 104 observations in the test set, and using 20 neighbors means that we are essentially averaging over a large portion of the training data, which may lead to underfitting and poor generalization to the test data.
+```{r}
+# KNN with Lag2 and log(Volume) as predictors
+train_knn <- train_notoday %>% dplyr::select(Lag2, Volume) %>% mutate(Volume = log(Volume))
+test_knn <- test_notoday %>% dplyr::select(Lag2, Volume) %>% mutate(Volume = log(Volume))
+for (k in c(1, 3, 5, 10, 20, 50, 100)) {
+  knn_pred <- knn(train = train_knn,
+                  test = test_knn,
+                  cl = train_notoday$Direction, k = k)
+  acc <- mean(knn_pred == test_notoday$Direction)
+  cat("K =", k, "Accuracy =", round(acc, 4), "\n")
+}
+```
+
+For this example, there is a slight U-shape for accuracy as K increases, with the highest accuracy occuring at very large K (plateau at accuracy of 0.6154). This tells us that there is little local structure in Lag2+log(Volume) that is useful for predicting Direction.
+
+```{r}
+# additional exploration of the notable Lag2 + log(Volume) in other methods
+lda_lag2_logvol <- lda(Direction ~ Lag2 + log(Volume), data = train_notoday)
+lda_pred <- predict(lda_lag2_logvol, newdata = test_notoday)
+confusion_matrix_lda_logvol <- confusionMatrix(data = lda_pred$class,
+                                               reference = test_notoday$Direction,
+                                               positive = "Up")
+confusion_matrix_lda_logvol
+qda_lag2_logvol <- qda(Direction ~ Lag2 + log(Volume), data = train_notoday)
+qda_pred <- predict(qda_lag2_logvol, newdata = test_notoday)
+confusion_matrix_qda_logvol <- confusionMatrix(data = qda_pred$class,
+                                               reference = test_notoday$Direction,
+                                               positive = "Up")
+confusion_matrix_qda_logvol
+```
+
+The addition of the log(Volume) predictor seems to actively harm the performance of LDA and QDA. This suggests that log(Volume) does not carry useful signal for predicting Direction and instead introduces noise. For QDA specifically, adding a predictor means estimating additional parameters (separate covariance matrices per class), which increases model variance without a corresponding reduction in bias — a case of overfitting in a small-sample, weak-signal setting.
+
+More broadly, QDA and Naive Bayes appear to be poor fits for this data: with Lag2 alone, they predict "Up" for all observations, and with the addition of log(Volume), they perform near chance level. LDA also degrades with log(Volume), further suggesting that Volume (even log-transformed) is not informative for this classification task. The best-performing methods remain logistic regression and LDA with Lag2 as the sole predictor.
+
+There may be other combinations of predictors and their transformations that could be explored, especially for the logistic regression model that seems to respond the best to changes in the predictor space. However, given the results from the models tested, it appears that Lag2 is the most informative predictor for Direction (also being the only statistically significant predictor under the full model in part (b)), and additional predictors or transformations do not provide a significant improvement in accuracy on the test data. 
+
+Upon researching this topic online, this finding seems to be consistent with the general understanding of stock market data, which is often noisy and has a low signal-to-noise ratio. This is consistent with the efficient market hypothesis, which suggests that past market information (such as lagged returns and volume) should have limited predictive power over future market direction. Moreover, it seems intuitive that the most recent lag (Lag2) would be the most informative predictor, as it captures the most recent market movements, while older lags may have less relevance for predicting future direction.
 
 ## Bonus question: ISL Exercise 4.8.4 (30pts)
 

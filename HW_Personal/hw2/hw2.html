@@ -6,7 +6,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="author" content="YOUR NAME and UID">
+<meta name="author" content="Max Vo ; 106784933">
 <meta name="dcterms.date" content="2026-02-11">
 
 <title>Biostat 212a Homework 2</title>
@@ -2385,7 +2385,7 @@ window.Quarto = {
     <div>
     <div class="quarto-title-meta-heading">Author</div>
     <div class="quarto-title-meta-contents">
-             <p>YOUR NAME and UID </p>
+             <p>Max Vo ; 106784933 </p>
           </div>
   </div>
     
@@ -2885,29 +2885,29 @@ Prediction Down Up
 
           Reference
 Prediction Down Up
-      Down   21 29
-      Up     22 32
-                                         
-               Accuracy : 0.5096         
-                 95% CI : (0.4097, 0.609)
-    No Information Rate : 0.5865         
-    P-Value [Acc &gt; NIR] : 0.9540         
-                                         
-                  Kappa : 0.0127         
-                                         
- Mcnemar&#39;s Test P-Value : 0.4008         
-                                         
-            Sensitivity : 0.5246         
-            Specificity : 0.4884         
-         Pos Pred Value : 0.5926         
-         Neg Pred Value : 0.4200         
-             Prevalence : 0.5865         
-         Detection Rate : 0.3077         
-   Detection Prevalence : 0.5192         
-      Balanced Accuracy : 0.5065         
-                                         
-       &#39;Positive&#39; Class : Up             
-                                         </code></pre>
+      Down   21 30
+      Up     22 31
+                                          
+               Accuracy : 0.5             
+                 95% CI : (0.4003, 0.5997)
+    No Information Rate : 0.5865          
+    P-Value [Acc &gt; NIR] : 0.9700          
+                                          
+                  Kappa : -0.0033         
+                                          
+ Mcnemar&#39;s Test P-Value : 0.3317          
+                                          
+            Sensitivity : 0.5082          
+            Specificity : 0.4884          
+         Pos Pred Value : 0.5849          
+         Neg Pred Value : 0.4118          
+             Prevalence : 0.5865          
+         Detection Rate : 0.2981          
+   Detection Prevalence : 0.5096          
+      Balanced Accuracy : 0.4983          
+                                          
+       &#39;Positive&#39; Class : Up              
+                                          </code></pre>
 </div>
 </div>
 <p>The overall fraction of correct predictions for the held out data using KNN with K = 1 and Lag2 as the onle predictor is approximately 0.51. The KNN model performs the worst among the models, with higher specificity than LDA/logistic regression but much lower sensitivity, as the model at K = 1 is very sensitive to noise. As such the model generates a large number of false negatives and false positives.</p>
@@ -2993,6 +2993,217 @@ Prediction Down Up
 <ol start="10" type="a">
 <li>Experiment with different combinations of predictors, including possible transformations and interactions, for each of the methods. Report the variables, method, and associated confusion matrix that appears to provide the best results on the held out data. Note that you should also experiment with values for K in the KNN classifier.</li>
 </ol>
+<p>We cannot use the leaps package for subset selection since our problem is classification and not regression, but we can use the <code>caret</code> package to perform feature selection using recursive feature elimination (RFE) or other methods.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Direction is essentially just the sign of the Today variable, so we should eclude the Today variable from our predictors</span></span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>train_notoday <span class="ot">&lt;-</span> train_data <span class="sc">%&gt;%</span> dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="sc">-</span>Today)</span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>test_notoday <span class="ot">&lt;-</span> test_data <span class="sc">%&gt;%</span> dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="sc">-</span>Today)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="co"># first trying on logistic regression since it performed well</span></span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Lag2 + interaction</span></span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a>glm_1 <span class="ot">&lt;-</span> <span class="fu">glm</span>(Direction <span class="sc">~</span> Lag2 <span class="sc">*</span> Lag1, <span class="at">data =</span> train_notoday, <span class="at">family =</span> binomial)</span>
+<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb39-6"><a href="#cb39-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Lag2 + Lag2^2 (quadratic transformation)</span></span>
+<span id="cb39-7"><a href="#cb39-7" aria-hidden="true" tabindex="-1"></a>glm_2 <span class="ot">&lt;-</span> <span class="fu">glm</span>(Direction <span class="sc">~</span> <span class="fu">poly</span>(Lag2, <span class="dv">2</span>), <span class="at">data =</span> train_notoday, <span class="at">family =</span> binomial)</span>
+<span id="cb39-8"><a href="#cb39-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb39-9"><a href="#cb39-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Multiple lags</span></span>
+<span id="cb39-10"><a href="#cb39-10" aria-hidden="true" tabindex="-1"></a>glm_3 <span class="ot">&lt;-</span> <span class="fu">glm</span>(Direction <span class="sc">~</span> Lag1 <span class="sc">+</span> Lag2 <span class="sc">+</span> Lag3, <span class="at">data =</span> train_notoday, <span class="at">family =</span> binomial)</span>
+<span id="cb39-11"><a href="#cb39-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb39-12"><a href="#cb39-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Lag2 with Volume interaction</span></span>
+<span id="cb39-13"><a href="#cb39-13" aria-hidden="true" tabindex="-1"></a>glm_4 <span class="ot">&lt;-</span> <span class="fu">glm</span>(Direction <span class="sc">~</span> Lag2 <span class="sc">*</span> Volume, <span class="at">data =</span> train_notoday, <span class="at">family =</span> binomial)</span>
+<span id="cb39-14"><a href="#cb39-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb39-15"><a href="#cb39-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Log transform of Volume</span></span>
+<span id="cb39-16"><a href="#cb39-16" aria-hidden="true" tabindex="-1"></a>glm_5 <span class="ot">&lt;-</span> <span class="fu">glm</span>(Direction <span class="sc">~</span> Lag2 <span class="sc">+</span> <span class="fu">log</span>(Volume), <span class="at">data =</span> train_notoday, <span class="at">family =</span> binomial)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="co"># function to evaluate glm model performance on test data</span></span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>eval_glm <span class="ot">&lt;-</span> <span class="cf">function</span>(model, test_data){</span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a>  probs <span class="ot">&lt;-</span> <span class="fu">predict</span>(model, <span class="at">newdata =</span> test_data, <span class="at">type =</span> <span class="st">&quot;response&quot;</span>)</span>
+<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a>  preds <span class="ot">&lt;-</span> <span class="fu">factor</span>(<span class="fu">ifelse</span>(probs <span class="sc">&gt;</span> <span class="fl">0.5</span>, <span class="st">&quot;Up&quot;</span>, <span class="st">&quot;Down&quot;</span>),</span>
+<span id="cb40-5"><a href="#cb40-5" aria-hidden="true" tabindex="-1"></a>                  <span class="at">levels =</span> <span class="fu">levels</span>(test_data<span class="sc">$</span>Direction))</span>
+<span id="cb40-6"><a href="#cb40-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">confusionMatrix</span>(<span class="at">data =</span> preds, <span class="at">reference =</span> test_data<span class="sc">$</span>Direction, </span>
+<span id="cb40-7"><a href="#cb40-7" aria-hidden="true" tabindex="-1"></a>                  <span class="at">positive =</span> <span class="st">&quot;Up&quot;</span>)</span>
+<span id="cb40-8"><a href="#cb40-8" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb40-9"><a href="#cb40-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-10"><a href="#cb40-10" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;GLM 1: Lag2 * Lag1 interaction</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>GLM 1: Lag2 * Lag1 interaction</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">eval_glm</span>(glm_1, test_notoday)<span class="sc">$</span>overall[<span class="st">&#39;Accuracy&#39;</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> Accuracy 
+0.5769231 </code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">GLM 2: poly(Lag2, 2) quadratic transformation</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+GLM 2: poly(Lag2, 2) quadratic transformation</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">eval_glm</span>(glm_2, test_notoday)<span class="sc">$</span>overall[<span class="st">&#39;Accuracy&#39;</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Accuracy 
+   0.625 </code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb48"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">GLM 3: Lag1 + Lag2 + Lag3</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+GLM 3: Lag1 + Lag2 + Lag3</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb50"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">eval_glm</span>(glm_3, test_notoday)<span class="sc">$</span>overall[<span class="st">&#39;Accuracy&#39;</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> Accuracy 
+0.5769231 </code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb52"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">GLM 4: Lag2 * Volume interaction</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+GLM 4: Lag2 * Volume interaction</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb54"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb54-1"><a href="#cb54-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">eval_glm</span>(glm_4, test_notoday)<span class="sc">$</span>overall[<span class="st">&#39;Accuracy&#39;</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> Accuracy 
+0.5384615 </code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb56"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">GLM 5: Lag2 + log(Volume)</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+GLM 5: Lag2 + log(Volume)</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb58"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb58-1"><a href="#cb58-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">eval_glm</span>(glm_5, test_notoday)<span class="sc">$</span>overall[<span class="st">&#39;Accuracy&#39;</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> Accuracy 
+0.5769231 </code></pre>
+</div>
+</div>
+<p>From this testing, we see that the model with the highest accuracy on the test data is GLM 2, which includes a quadratic transformation of Lag2. This model achieves an accuracy of approximately 0.625, which is the same as the original logistic regression model with only Lag2 as a predictor. However, the other models with interactions and multiple predictors did not improve the accuracy on the test data, indicating that they may be overfitting to the training data or that the additional predictors do not provide useful information for predicting the Direction variable. I did find the interasting quirk that taking the log of Volume as a predictor improves the model. (accuracy of GLM 5 is greater than GLM 4, but the model still performs worse than the original model with only Lag2 as a predictor)</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb60"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb60-1"><a href="#cb60-1" aria-hidden="true" tabindex="-1"></a><span class="fu">nrow</span>(test_notoday)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 104</code></pre>
+</div>
+</div>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb62"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb62-1"><a href="#cb62-1" aria-hidden="true" tabindex="-1"></a><span class="co"># further exploration with KNN, using Lag2 only</span></span>
+<span id="cb62-2"><a href="#cb62-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Try different K values for KNN</span></span>
+<span id="cb62-3"><a href="#cb62-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (k <span class="cf">in</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">3</span>, <span class="dv">5</span>, <span class="dv">10</span>, <span class="dv">20</span>, <span class="dv">50</span>, <span class="dv">100</span>)) {</span>
+<span id="cb62-4"><a href="#cb62-4" aria-hidden="true" tabindex="-1"></a>  knn_pred <span class="ot">&lt;-</span> <span class="fu">knn</span>(<span class="at">train =</span> <span class="fu">data.frame</span>(train_notoday<span class="sc">$</span>Lag2),</span>
+<span id="cb62-5"><a href="#cb62-5" aria-hidden="true" tabindex="-1"></a>                  <span class="at">test =</span> <span class="fu">data.frame</span>(test_notoday<span class="sc">$</span>Lag2),</span>
+<span id="cb62-6"><a href="#cb62-6" aria-hidden="true" tabindex="-1"></a>                  <span class="at">cl =</span> train_notoday<span class="sc">$</span>Direction, <span class="at">k =</span> k)</span>
+<span id="cb62-7"><a href="#cb62-7" aria-hidden="true" tabindex="-1"></a>  acc <span class="ot">&lt;-</span> <span class="fu">mean</span>(knn_pred <span class="sc">==</span> test_notoday<span class="sc">$</span>Direction)</span>
+<span id="cb62-8"><a href="#cb62-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;K =&quot;</span>, k, <span class="st">&quot;Accuracy =&quot;</span>, <span class="fu">round</span>(acc, <span class="dv">4</span>), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb62-9"><a href="#cb62-9" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>K = 1 Accuracy = 0.5096 
+K = 3 Accuracy = 0.5385 
+K = 5 Accuracy = 0.5288 
+K = 10 Accuracy = 0.6058 
+K = 20 Accuracy = 0.5865 
+K = 50 Accuracy = 0.5385 
+K = 100 Accuracy = 0.5577 </code></pre>
+</div>
+</div>
+<p>I could create a function that loops through K values to find the optimal K value for KNN, but it appears that accuracy peaks at around K = 20 with an accuracy of approximately 0.61 which is still lower than logistic regression/KNN. Additionally, using 20 nearest neighbors is not ideal given that we only have 104 observations in the test set, and using 20 neighbors means that we are essentially averaging over a large portion of the training data, which may lead to underfitting and poor generalization to the test data.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb64"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb64-1"><a href="#cb64-1" aria-hidden="true" tabindex="-1"></a><span class="co"># KNN with Lag2 and log(Volume) as predictors</span></span>
+<span id="cb64-2"><a href="#cb64-2" aria-hidden="true" tabindex="-1"></a>train_knn <span class="ot">&lt;-</span> train_notoday <span class="sc">%&gt;%</span> dplyr<span class="sc">::</span><span class="fu">select</span>(Lag2, Volume) <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">Volume =</span> <span class="fu">log</span>(Volume))</span>
+<span id="cb64-3"><a href="#cb64-3" aria-hidden="true" tabindex="-1"></a>test_knn <span class="ot">&lt;-</span> test_notoday <span class="sc">%&gt;%</span> dplyr<span class="sc">::</span><span class="fu">select</span>(Lag2, Volume) <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">Volume =</span> <span class="fu">log</span>(Volume))</span>
+<span id="cb64-4"><a href="#cb64-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (k <span class="cf">in</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">3</span>, <span class="dv">5</span>, <span class="dv">10</span>, <span class="dv">20</span>, <span class="dv">50</span>, <span class="dv">100</span>)) {</span>
+<span id="cb64-5"><a href="#cb64-5" aria-hidden="true" tabindex="-1"></a>  knn_pred <span class="ot">&lt;-</span> <span class="fu">knn</span>(<span class="at">train =</span> train_knn,</span>
+<span id="cb64-6"><a href="#cb64-6" aria-hidden="true" tabindex="-1"></a>                  <span class="at">test =</span> test_knn,</span>
+<span id="cb64-7"><a href="#cb64-7" aria-hidden="true" tabindex="-1"></a>                  <span class="at">cl =</span> train_notoday<span class="sc">$</span>Direction, <span class="at">k =</span> k)</span>
+<span id="cb64-8"><a href="#cb64-8" aria-hidden="true" tabindex="-1"></a>  acc <span class="ot">&lt;-</span> <span class="fu">mean</span>(knn_pred <span class="sc">==</span> test_notoday<span class="sc">$</span>Direction)</span>
+<span id="cb64-9"><a href="#cb64-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;K =&quot;</span>, k, <span class="st">&quot;Accuracy =&quot;</span>, <span class="fu">round</span>(acc, <span class="dv">4</span>), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb64-10"><a href="#cb64-10" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>K = 1 Accuracy = 0.5481 
+K = 3 Accuracy = 0.5288 
+K = 5 Accuracy = 0.5385 
+K = 10 Accuracy = 0.5 
+K = 20 Accuracy = 0.5481 
+K = 50 Accuracy = 0.5962 
+K = 100 Accuracy = 0.6154 </code></pre>
+</div>
+</div>
+<p>For this example, there is a slight U-shape for accuracy as K increases, with the highest accuracy occuring at very large K (plateau at accuracy of 0.6154). This tells us that there is little local structure in Lag2+log(Volume) that is useful for predicting Direction.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb66"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb66-1"><a href="#cb66-1" aria-hidden="true" tabindex="-1"></a><span class="co"># additional exploration of the notable Lag2 + log(Volume) in other methods</span></span>
+<span id="cb66-2"><a href="#cb66-2" aria-hidden="true" tabindex="-1"></a>lda_lag2_logvol <span class="ot">&lt;-</span> <span class="fu">lda</span>(Direction <span class="sc">~</span> Lag2 <span class="sc">+</span> <span class="fu">log</span>(Volume), <span class="at">data =</span> train_notoday)</span>
+<span id="cb66-3"><a href="#cb66-3" aria-hidden="true" tabindex="-1"></a>lda_pred <span class="ot">&lt;-</span> <span class="fu">predict</span>(lda_lag2_logvol, <span class="at">newdata =</span> test_notoday)</span>
+<span id="cb66-4"><a href="#cb66-4" aria-hidden="true" tabindex="-1"></a>confusion_matrix_lda_logvol <span class="ot">&lt;-</span> <span class="fu">confusionMatrix</span>(<span class="at">data =</span> lda_pred<span class="sc">$</span>class,</span>
+<span id="cb66-5"><a href="#cb66-5" aria-hidden="true" tabindex="-1"></a>                                               <span class="at">reference =</span> test_notoday<span class="sc">$</span>Direction,</span>
+<span id="cb66-6"><a href="#cb66-6" aria-hidden="true" tabindex="-1"></a>                                               <span class="at">positive =</span> <span class="st">&quot;Up&quot;</span>)</span>
+<span id="cb66-7"><a href="#cb66-7" aria-hidden="true" tabindex="-1"></a>confusion_matrix_lda_logvol</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Confusion Matrix and Statistics
+
+          Reference
+Prediction Down Up
+      Down   14 15
+      Up     29 46
+                                          
+               Accuracy : 0.5769          
+                 95% CI : (0.4761, 0.6732)
+    No Information Rate : 0.5865          
+    P-Value [Acc &gt; NIR] : 0.61933         
+                                          
+                  Kappa : 0.0837          
+                                          
+ Mcnemar&#39;s Test P-Value : 0.05002         
+                                          
+            Sensitivity : 0.7541          
+            Specificity : 0.3256          
+         Pos Pred Value : 0.6133          
+         Neg Pred Value : 0.4828          
+             Prevalence : 0.5865          
+         Detection Rate : 0.4423          
+   Detection Prevalence : 0.7212          
+      Balanced Accuracy : 0.5398          
+                                          
+       &#39;Positive&#39; Class : Up              
+                                          </code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb68"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb68-1"><a href="#cb68-1" aria-hidden="true" tabindex="-1"></a>qda_lag2_logvol <span class="ot">&lt;-</span> <span class="fu">qda</span>(Direction <span class="sc">~</span> Lag2 <span class="sc">+</span> <span class="fu">log</span>(Volume), <span class="at">data =</span> train_notoday)</span>
+<span id="cb68-2"><a href="#cb68-2" aria-hidden="true" tabindex="-1"></a>qda_pred <span class="ot">&lt;-</span> <span class="fu">predict</span>(qda_lag2_logvol, <span class="at">newdata =</span> test_notoday)</span>
+<span id="cb68-3"><a href="#cb68-3" aria-hidden="true" tabindex="-1"></a>confusion_matrix_qda_logvol <span class="ot">&lt;-</span> <span class="fu">confusionMatrix</span>(<span class="at">data =</span> qda_pred<span class="sc">$</span>class,</span>
+<span id="cb68-4"><a href="#cb68-4" aria-hidden="true" tabindex="-1"></a>                                               <span class="at">reference =</span> test_notoday<span class="sc">$</span>Direction,</span>
+<span id="cb68-5"><a href="#cb68-5" aria-hidden="true" tabindex="-1"></a>                                               <span class="at">positive =</span> <span class="st">&quot;Up&quot;</span>)</span>
+<span id="cb68-6"><a href="#cb68-6" aria-hidden="true" tabindex="-1"></a>confusion_matrix_qda_logvol</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Confusion Matrix and Statistics
+
+          Reference
+Prediction Down Up
+      Down   21 24
+      Up     22 37
+                                        
+               Accuracy : 0.5577        
+                 95% CI : (0.457, 0.655)
+    No Information Rate : 0.5865        
+    P-Value [Acc &gt; NIR] : 0.7579        
+                                        
+                  Kappa : 0.0943        
+                                        
+ Mcnemar&#39;s Test P-Value : 0.8828        
+                                        
+            Sensitivity : 0.6066        
+            Specificity : 0.4884        
+         Pos Pred Value : 0.6271        
+         Neg Pred Value : 0.4667        
+             Prevalence : 0.5865        
+         Detection Rate : 0.3558        
+   Detection Prevalence : 0.5673        
+      Balanced Accuracy : 0.5475        
+                                        
+       &#39;Positive&#39; Class : Up            
+                                        </code></pre>
+</div>
+</div>
+<p>The addition of the log(Volume) predictor seems to actively harm the performance of LDA and QDA. This suggests that log(Volume) does not carry useful signal for predicting Direction and instead introduces noise. For QDA specifically, adding a predictor means estimating additional parameters (separate covariance matrices per class), which increases model variance without a corresponding reduction in bias — a case of overfitting in a small-sample, weak-signal setting.</p>
+<p>More broadly, QDA and Naive Bayes appear to be poor fits for this data: with Lag2 alone, they predict “Up” for all observations, and with the addition of log(Volume), they perform near chance level. LDA also degrades with log(Volume), further suggesting that Volume (even log-transformed) is not informative for this classification task. The best-performing methods remain logistic regression and LDA with Lag2 as the sole predictor.</p>
+<p>There may be other combinations of predictors and their transformations that could be explored, especially for the logistic regression model that seems to respond the best to changes in the predictor space. However, given the results from the models tested, it appears that Lag2 is the most informative predictor for Direction (also being the only statistically significant predictor under the full model in part (b)), and additional predictors or transformations do not provide a significant improvement in accuracy on the test data.</p>
+<p>Upon researching this topic online, this finding seems to be consistent with the general understanding of stock market data, which is often noisy and has a low signal-to-noise ratio. This is consistent with the efficient market hypothesis, which suggests that past market information (such as lagged returns and volume) should have limited predictive power over future market direction. Moreover, it seems intuitive that the most recent lag (Lag2) would be the most informative predictor, as it captures the most recent market movements, while older lags may have less relevance for predicting future direction.</p>
 </section>
 <section id="bonus-question-isl-exercise-4.8.4-30pts" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="bonus-question-isl-exercise-4.8.4-30pts"><span class="header-section-number">6</span> Bonus question: ISL Exercise 4.8.4 (30pts)</h2>
