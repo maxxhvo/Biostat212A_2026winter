@@ -963,7 +963,11 @@ The lasso was performed with $n = 100$ observations and three values of $p$, the
   
 - In general, adding additional signal features that are truly associated with the response will improve the fitted model, i.e., a reduction in test set error. 
 - However, adding noise features that are not truly associated with the response will lead to a deterioration in the fitted model, and consequently an increased test set error.
-  
+  + In linear regression, the expected difference between the train and the test error is
+$$
+\mathbb{E}[\text{MSE}_{\text{test}} - \text{MSE}_{\text{train}}] = 2 \sigma^2 \frac{p}{n},
+$$
+where $\sigma^2$ is the variance of the error term $\epsilon$ in the linear regression model. Hence, as $p$ increases, the expected test error increases relative to the training error.
   
 ## Summary
 

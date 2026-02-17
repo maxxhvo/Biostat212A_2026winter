@@ -1,6 +1,6 @@
 ---
 title: "Interpretability for Tree Ensembles"
-subtitle: "Biostat 274"
+subtitle: "Biostat 212A"
 author: "Dr. Jin Zhou @ UCLA"
 date: today
 format:
