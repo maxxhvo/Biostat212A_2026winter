@@ -1,6 +1,6 @@
 ---
 title: "Tree-Based Methods (ISL 8)"
-subtitle: "Biostat 274"
+subtitle: "Biostat 212A"
 author: "Dr. Jin Zhou @ UCLA"
 date: today
 format:
@@ -20,9 +20,6 @@ knitr:
     # fig.height: 4
     message: FALSE
     cache: false
-header-includes:
-  - \usepackage{algorithm}
-  - \usepackage{algpseudocode}
 ---
 
 Credit: This note heavily uses material from the books [_An Introduction to Statistical Learning: with Applications in R_](https://www.statlearning.com/) (ISL2) and [_Elements of Statistical Learning: Data Mining, Inference, and Prediction_](https://hastie.su.domains/ElemStatLearn/) (ESL2).
@@ -103,7 +100,7 @@ sns.set(font_scale = 2)
 # Display all columns
 pd.set_option('display.max_columns', None)
 
-Hitters = pd.read_csv("./slides/data/Hitters.csv")
+Hitters = pd.read_csv("../data/Hitters.csv")
 Hitters
 ```
 
