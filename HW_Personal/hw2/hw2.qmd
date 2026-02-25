@@ -3,6 +3,7 @@ title: "Biostat 212a Homework 2"
 subtitle: "Due Feb 11, 2026 @ 11:59PM"
 author: Max Vo ; 106784933
 date: "`r format(Sys.time(), '%d %B, %Y')`"
+
 format:
   html:
     theme: cosmo
@@ -12,6 +13,7 @@ format:
     toc-depth: 4
     toc-location: left
     code-fold: false
+
 engine: knitr
 knitr:
   opts_chunk: 
