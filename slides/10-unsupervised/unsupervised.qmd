@@ -39,6 +39,7 @@ library(ggplot2)
 library(embed)
 library(tidymodels)
 library(ISLR2)
+library(tibble)
 
 ## In order to use MNIST datasets, I installed the keras package and its dependencies
 # set up Tools -> Global Options -> Python -> "~/.virtualenvs/r-tensorflow/bin/python" 
