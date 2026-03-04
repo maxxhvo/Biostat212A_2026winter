@@ -249,6 +249,7 @@ The largest value of $C$ was used in the top left panel, and smaller values were
 
 :::
 
+
 - By a similar reparameterization trick as before, we solve the equivalent optimization problem
 \begin{eqnarray*}
 \min & & \frac 12 \|\beta\|^2 \\
@@ -265,6 +266,13 @@ The largest value of $C$ was used in the top left panel, and smaller values were
 - The above optimization has an interesting property: it turns out that only observations that either lie on the margin or that violate the margin will affect the hyperplane, and hence the classifier obtained. 
   + An observation that lies strictly on the correct side of the margin **does not** affect the support vector classifier! Changing the position of that observation would not change the classifier at all, provided that its position remains on the correct side of the margin. 
   + Observations that lie directly on the margin, or on the wrong side of the margin for their class, are known as **support vectors**. These observations do affect the support vector classifier.
+  
+  
+## Interactive Demo: SVM Playground
+
+Play with the controls to build intuition for how SVMs work.
+
+<iframe src="svm_playground.html" width="100%" height="1320" style="border: none; border-radius: 8px;"></iframe>
 
 
 ## Nonlinearity: support vector machines (SVM)
