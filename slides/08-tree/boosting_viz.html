@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Gradient Boosting: Iteration by Iteration</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0f1419;font-family:'IBM Plex Sans','DM Sans',system-ui,sans-serif}
+input[type=range]{-webkit-appearance:auto;width:100%;accent-color:#4ecdc4;height:4px;cursor:pointer}
+button{cursor:pointer;font-family:inherit}button:hover{opacity:0.85}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const{useState,useEffect,useMemo,useRef}=React;
+
+const C={bg:"#0f1419",card:"#1a2028",border:"#2a3444",text:"#d4dae2",muted:"#6b7a8d",accent:"#4ecdc4",data:"#ff6b6b",truth:"#ffe66d",model:"#4ecdc4",modelGlow:"rgba(78,205,196,0.4)",residPos:"rgba(78,205,196,0.35)",residNeg:"rgba(255,107,107,0.35)",correction:"#c792ea",correctionDim:"rgba(199,146,234,0.2)",grid:"rgba(42,52,68,0.5)"};
+
+function fitStump(X,y){let best=0,bestRSS=1/0,lm=0,rm=0;const s=X.map((x,i)=>[x,y[i]]).sort((a,b)=>a[0]-b[0]);
+for(let k=1;k<s.length;k++){const lY=s.slice(0,k).map(d=>d[1]),rY=s.slice(k).map(d=>d[1]);
+const ml=lY.reduce((a,b)=>a+b,0)/lY.length,mr=rY.reduce((a,b)=>a+b,0)/rY.length;
+let rss=0;for(const v of lY)rss+=(v-ml)**2;for(const v of rY)rss+=(v-mr)**2;
+if(rss<bestRSS){bestRSS=rss;best=(s[k-1][0]+s[k][0])/2;lm=ml;rm=mr;}}
+return{split:best,leftMean:lm,rightMean:rm};}
+
+function fitD2(X,y){const st=fitStump(X,y);const li=[],ri=[];
+X.forEach((x,i)=>{(x<st.split?li:ri).push(i)});
+let lt=null,rt=null;
+if(li.length>3)lt=fitStump(li.map(i=>X[i]),li.map(i=>y[i]));
+if(ri.length>3)rt=fitStump(ri.map(i=>X[i]),ri.map(i=>y[i]));
+return{...st,leftTree:lt,rightTree:rt};}
+
+function predTree(t,x){if(x<t.split){if(t.leftTree)return x<t.leftTree.split?t.leftTree.leftMean:t.leftTree.rightMean;return t.leftMean;}
+else{if(t.rightTree)return x<t.rightTree.split?t.rightTree.leftMean:t.rightTree.rightMean;return t.rightMean;}}
+
+function genData(seed=42){let s=seed;const r=()=>{s=(s*16807)%2147483647;return s/2147483647;};
+const tf=x=>Math.sin(2.2*x)+0.5*Math.cos(4.5*x)+0.3*x;const n=60,X=[],y=[];
+for(let i=0;i<n;i++){const x=-3+6*(i/(n-1))+(r()-0.5)*0.15;X.push(x);y.push(tf(x)+(r()-0.5)*0.8);}
+return{X,y,trueFunc:tf};}
+
+function runBoosting(X,y,B=200,nu=0.15){const n=X.length;const preds=new Array(n);
+const my=y.reduce((a,b)=>a+b,0)/n;preds.fill(my);const trees=[],snaps=[preds.slice()],rH=[];
+let rss0=0;for(let i=0;i<n;i++)rss0+=(y[i]-preds[i])**2;rH.push(rss0);
+for(let b=0;b<B;b++){const res=y.map((yi,i)=>yi-preds[i]);const tree=fitD2(X,res);trees.push(tree);
+for(let i=0;i<n;i++)preds[i]+=nu*predTree(tree,X[i]);snaps.push(preds.slice());
+let rss=0;for(let i=0;i<n;i++)rss+=(y[i]-preds[i])**2;rH.push(rss);}
+return{trees,snapshots:snaps,rssHistory:rH,mean_y:my};}
+
+function App(){
+const[iter,setIter]=useState(0);
+const[showT,setShowT]=useState(true);
+const[showR,setShowR]=useState(true);
+const[showC,setShowC]=useState(true);
+const[nu,setNu]=useState(0.15);
+const[playing,setPlaying]=useState(false);
+const playRef=useRef(null);
+const mainRef=useRef(null);
+const lossRef=useRef(null);
+const MX=200;
+
+const{X,y,trueFunc}=useMemo(()=>genData(42),[]);
+const{trees,snapshots,rssHistory,mean_y}=useMemo(()=>runBoosting(X,y,MX,nu),[X,y,nu]);
+
+const xMin=-3.3,xMax=3.3,yPad=0.6;
+const yMin=Math.min(...y)-yPad,yMax=Math.max(...y)+yPad;
+
+useEffect(()=>{
+if(playing){playRef.current=setInterval(()=>{setIter(p=>{if(p>=MX){setPlaying(false);return p;}return p+1;});},60);}
+else clearInterval(playRef.current);return()=>clearInterval(playRef.current);},[playing]);
+
+// Main plot
+useEffect(()=>{
+const cv=mainRef.current;if(!cv)return;
+const W=600,H=380,P=42,dpr=window.devicePixelRatio||1;
+cv.width=W*dpr;cv.height=H*dpr;const ctx=cv.getContext("2d");ctx.scale(dpr,dpr);
+const tx=x=>P+((x-xMin)/(xMax-xMin))*(W-2*P);
+const ty=v=>P+((yMax-v)/(yMax-yMin))*(H-2*P);
+
+ctx.fillStyle="#0c1015";ctx.fillRect(0,0,W,H);
+
+// Grid
+ctx.strokeStyle=C.grid;ctx.lineWidth=0.5;
+for(let g=Math.ceil(xMin);g<=Math.floor(xMax);g++){ctx.beginPath();ctx.moveTo(tx(g),P);ctx.lineTo(tx(g),H-P);ctx.stroke();}
+for(let g=Math.ceil(yMin);g<=Math.floor(yMax);g++){ctx.beginPath();ctx.moveTo(P,ty(g));ctx.lineTo(W-P,ty(g));ctx.stroke();}
+ctx.strokeStyle=C.border;ctx.lineWidth=1;
+ctx.beginPath();ctx.moveTo(P,H-P);ctx.lineTo(W-P,H-P);ctx.stroke();
+ctx.beginPath();ctx.moveTo(P,P);ctx.lineTo(P,H-P);ctx.stroke();
+
+// True function
+if(showT){ctx.strokeStyle=C.truth;ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.beginPath();
+for(let px=P;px<=W-P;px++){const xv=xMin+((px-P)/(W-2*P))*(xMax-xMin);const yv=trueFunc(xv);
+if(px===P)ctx.moveTo(px,ty(yv));else ctx.lineTo(px,ty(yv));}ctx.stroke();ctx.setLineDash([]);}
+
+// Correction
+if(showC&&iter>0&&iter<=MX){const tree=trees[iter-1];
+const pts=[];for(let px=P;px<=W-P;px+=2){const xv=xMin+((px-P)/(W-2*P))*(xMax-xMin);
+const corr=nu*predTree(tree,xv);let prev=mean_y;
+for(let t=0;t<iter-1;t++)prev+=nu*predTree(trees[t],xv);
+pts.push({px,pY:ty(prev),cY:ty(prev+corr)});}
+ctx.fillStyle=C.correctionDim;ctx.beginPath();
+pts.forEach((p,i)=>{if(i===0)ctx.moveTo(p.px,p.pY);else ctx.lineTo(p.px,p.pY);});
+for(let i=pts.length-1;i>=0;i--)ctx.lineTo(pts[i].px,pts[i].cY);ctx.closePath();ctx.fill();
+ctx.strokeStyle=C.correction;ctx.lineWidth=1.5;ctx.beginPath();
+pts.forEach((p,i)=>{if(i===0)ctx.moveTo(p.px,p.cY);else ctx.lineTo(p.px,p.cY);});ctx.stroke();}
+
+// Model
+ctx.strokeStyle=C.model;ctx.lineWidth=2.8;ctx.shadowColor=C.modelGlow;ctx.shadowBlur=8;ctx.beginPath();
+for(let px=P;px<=W-P;px++){const xv=xMin+((px-P)/(W-2*P))*(xMax-xMin);
+let pred=mean_y;for(let t=0;t<iter;t++)pred+=nu*predTree(trees[t],xv);
+if(px===P)ctx.moveTo(px,ty(pred));else ctx.lineTo(px,ty(pred));}ctx.stroke();ctx.shadowBlur=0;
+
+// Residuals
+if(showR){const pr=snapshots[iter];
+for(let i=0;i<X.length;i++){const px=tx(X[i]);ctx.strokeStyle=y[i]>pr[i]?C.residPos:C.residNeg;ctx.lineWidth=1;
+ctx.beginPath();ctx.moveTo(px,ty(y[i]));ctx.lineTo(px,ty(pr[i]));ctx.stroke();}}
+
+// Data
+for(let i=0;i<X.length;i++){const px=tx(X[i]),py=ty(y[i]);ctx.beginPath();ctx.arc(px,py,3.5,0,Math.PI*2);
+ctx.fillStyle=C.data;ctx.fill();ctx.strokeStyle="rgba(255,255,255,0.15)";ctx.lineWidth=0.5;ctx.stroke();}
+
+// Axis ticks
+ctx.fillStyle=C.muted;ctx.font="10px 'IBM Plex Mono',monospace";ctx.textAlign="center";
+for(let g=Math.ceil(xMin);g<=Math.floor(xMax);g++)ctx.fillText(g,tx(g),H-P+14);
+ctx.textAlign="right";for(let g=Math.ceil(yMin);g<=Math.floor(yMax);g++)ctx.fillText(g.toFixed(0),P-6,ty(g)+3);
+ctx.fillStyle=C.text;ctx.font="bold 12px 'IBM Plex Mono',monospace";ctx.textAlign="left";
+ctx.fillText(`Model after ${iter} tree${iter!==1?"s":""}`,P+4,P-10);
+},[iter,showT,showR,showC,X,y,trees,snapshots,nu,trueFunc,mean_y]);
+
+// Loss plot
+useEffect(()=>{
+const cv=lossRef.current;if(!cv)return;
+const W=600,H=130,PL=50,PR=16,PT=24,PB=28,dpr=window.devicePixelRatio||1;
+cv.width=W*dpr;cv.height=H*dpr;const ctx=cv.getContext("2d");ctx.scale(dpr,dpr);
+ctx.fillStyle="#0c1015";ctx.fillRect(0,0,W,H);
+const rMax=rssHistory[0]*1.05;
+const tx=b=>PL+(b/MX)*(W-PL-PR),ty=r=>PT+((rMax-r)/(rMax))*(H-PT-PB);
+
+ctx.strokeStyle=C.grid;ctx.lineWidth=0.5;
+for(let r=0;r<=rMax;r+=Math.ceil(rMax/4)){ctx.beginPath();ctx.moveTo(PL,ty(r));ctx.lineTo(W-PR,ty(r));ctx.stroke();}
+
+ctx.strokeStyle=C.accent;ctx.lineWidth=2;ctx.beginPath();
+for(let b=0;b<=iter;b++){const px=tx(b),py=ty(rssHistory[b]);if(b===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);}ctx.stroke();
+
+if(iter<MX){ctx.strokeStyle="rgba(78,205,196,0.15)";ctx.lineWidth=1;ctx.setLineDash([3,3]);
+ctx.beginPath();ctx.moveTo(tx(iter),ty(rssHistory[iter]));
+for(let b=iter+1;b<=MX;b++)ctx.lineTo(tx(b),ty(rssHistory[b]));ctx.stroke();ctx.setLineDash([]);}
+
+ctx.beginPath();ctx.arc(tx(iter),ty(rssHistory[iter]),4,0,Math.PI*2);ctx.fillStyle=C.accent;ctx.fill();
+
+ctx.strokeStyle=C.border;ctx.lineWidth=1;
+ctx.beginPath();ctx.moveTo(PL,H-PB);ctx.lineTo(W-PR,H-PB);ctx.stroke();
+ctx.beginPath();ctx.moveTo(PL,PT);ctx.lineTo(PL,H-PB);ctx.stroke();
+
+ctx.fillStyle=C.muted;ctx.font="10px 'IBM Plex Mono',monospace";ctx.textAlign="center";
+for(let b=0;b<=MX;b+=50)ctx.fillText(b,tx(b),H-PB+14);
+ctx.textAlign="left";ctx.fillStyle=C.text;ctx.font="bold 11px 'IBM Plex Mono',monospace";
+ctx.fillText("Training RSS",PL+4,PT-6);
+ctx.fillStyle=C.muted;ctx.font="10px 'IBM Plex Mono',monospace";ctx.textAlign="right";
+ctx.fillText(`RSS = ${rssHistory[iter].toFixed(1)}`,W-PR,PT-6);
+},[iter,rssHistory,nu]);
+
+const handlePlay=()=>{if(iter>=MX)setIter(0);setPlaying(!playing);};
+
+const toggleStyle=(active,color)=>({padding:"5px 11px",borderRadius:6,fontSize:11,fontWeight:500,
+border:`1px solid ${active?color:C.border}`,background:active?`${color}18`:"transparent",
+color:active?color:C.muted,fontFamily:"inherit"});
+
+return(
+<div style={{minHeight:"100vh",background:C.bg,color:C.text,display:"flex",flexDirection:"column",alignItems:"center",padding:"20px 16px"}}>
+
+<div style={{textAlign:"center",marginBottom:16,maxWidth:620}}>
+<h1 style={{fontSize:22,fontWeight:700,margin:"0 0 4px",fontFamily:"'IBM Plex Mono',monospace",color:C.accent}}>Gradient Boosting: Iteration by Iteration</h1>
+<p style={{color:C.muted,fontSize:12.5,margin:0}}>Watch the model assemble itself — each small tree corrects the previous ensemble's mistakes</p>
+</div>
+
+<div style={{background:"#0c1015",borderRadius:10,border:`1px solid ${C.border}`,overflow:"hidden",boxShadow:"0 4px 20px rgba(0,0,0,0.4)"}}>
+<canvas ref={mainRef} style={{width:600,height:380,display:"block"}}/>
+</div>
+
+<div style={{width:600,marginTop:12,display:"flex",alignItems:"center",gap:10}}>
+<button onClick={handlePlay} style={{width:38,height:38,borderRadius:8,border:`1px solid ${C.border}`,background:C.card,color:C.accent,fontSize:16,display:"flex",alignItems:"center",justifyContent:"center"}}>{playing?"⏸":"▶"}</button>
+<input type="range" min={0} max={MX} step={1} value={iter} onChange={e=>{setIter(parseInt(e.target.value));setPlaying(false);}} style={{flex:1}}/>
+<div style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:13,color:C.accent,fontWeight:600,width:62,textAlign:"right"}}>{iter} / {MX}</div>
+</div>
+
+<div style={{marginTop:12,background:"#0c1015",borderRadius:10,border:`1px solid ${C.border}`,overflow:"hidden"}}>
+<canvas ref={lossRef} style={{width:600,height:130,display:"block"}}/>
+</div>
+
+<div style={{width:600,marginTop:14,display:"flex",gap:10,flexWrap:"wrap"}}>
+<div style={{display:"flex",gap:6,flex:1,flexWrap:"wrap"}}>
+<button onClick={()=>setShowT(!showT)} style={toggleStyle(showT,C.truth)}>True function</button>
+<button onClick={()=>setShowR(!showR)} style={toggleStyle(showR,C.residPos)}>Residuals</button>
+<button onClick={()=>setShowC(!showC)} style={toggleStyle(showC,C.correction)}>Latest correction</button>
+</div>
+<div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 14px",minWidth:180}}>
+<div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+<span style={{fontSize:11,color:C.muted,fontWeight:500}}>Learning rate ν</span>
+<span style={{fontSize:12,fontFamily:"'IBM Plex Mono',monospace",color:C.accent,fontWeight:600}}>{nu.toFixed(2)}</span>
+</div>
+<input type="range" min={0.01} max={0.5} step={0.01} value={nu} onChange={e=>{setNu(parseFloat(e.target.value));setIter(0);setPlaying(false);}} style={{width:"100%"}}/>
+</div>
+</div>
+
+<div style={{width:600,marginTop:14,background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:"12px 16px",display:"flex",gap:20,flexWrap:"wrap"}}>
+<span style={{display:"flex",alignItems:"center",gap:7,fontSize:11,color:C.muted}}><span style={{width:8,height:8,borderRadius:"50%",background:C.data}}/> Training data</span>
+<span style={{display:"flex",alignItems:"center",gap:7,fontSize:11,color:C.muted}}><span style={{width:16,height:0,borderTop:`2px dashed ${C.truth}`}}/> True f(x)</span>
+<span style={{display:"flex",alignItems:"center",gap:7,fontSize:11,color:C.muted}}><span style={{width:16,height:2.5,background:C.model,borderRadius:2}}/> Boosted model</span>
+<span style={{display:"flex",alignItems:"center",gap:7,fontSize:11,color:C.muted}}><span style={{width:14,height:10,background:`${C.correction}40`,border:`1px solid ${C.correction}`,borderRadius:2}}/> Tree correction</span>
+</div>
+
+<div style={{width:600,marginTop:14,padding:"12px 16px",background:"rgba(78,205,196,0.06)",border:"1px solid rgba(78,205,196,0.15)",borderRadius:10,fontSize:12,color:C.muted,lineHeight:1.65}}>
+<strong style={{color:C.accent}}>What to notice:</strong>{" "}
+At iteration 0, the model is just the mean (flat line).
+Each new tree (purple shading) adds a small correction that patches the worst remaining errors.
+With low ν the model learns cautiously — try ν = 0.01 vs. ν = 0.5 and compare how the RSS curve behaves.
+Slow learners with many trees generalize better than fast learners with few trees.
+</div>
+</div>);}
+
+ReactDOM.render(<App/>,document.getElementById("root"));
+</script>
+</body>
+</html>

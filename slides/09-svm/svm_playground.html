@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SVM Playground</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0D1117; font-family: 'DM Sans', 'Segoe UI', system-ui, sans-serif; }
+  input[type=range] { -webkit-appearance: auto; width: 100%; accent-color: #58A6FF; height: 4px; cursor: pointer; }
+  button { cursor: pointer; font-family: inherit; }
+  button:hover { opacity: 0.85; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback, useMemo, useRef } = React;
+
+// ── SVM solver (simplified SMO) ───────────────────────────────────────
+function kernelLinear(xi, xj) { return xi[0]*xj[0] + xi[1]*xj[1]; }
+function kernelPoly(xi, xj, degree=3, coef0=1) { return Math.pow(coef0 + xi[0]*xj[0] + xi[1]*xj[1], degree); }
+function kernelRBF(xi, xj, gamma=1.0) { const d0=xi[0]-xj[0], d1=xi[1]-xj[1]; return Math.exp(-gamma*(d0*d0+d1*d1)); }
+
+function solveSVM(X, y, C, kernelFn, maxIter=300) {
+  const n = X.length;
+  if (n === 0) return { alpha: [], b: 0 };
+  const alpha = new Float64Array(n);
+  let b = 0;
+  const K = [];
+  for (let i = 0; i < n; i++) { K[i] = new Float64Array(n); for (let j = 0; j < n; j++) K[i][j] = kernelFn(X[i], X[j]); }
+  const getE = (idx) => { let s = b; for (let j = 0; j < n; j++) s += alpha[j]*y[j]*K[idx][j]; return s - y[idx]; };
+  for (let iter = 0; iter < maxIter; iter++) {
+    let changed = 0;
+    for (let i = 0; i < n; i++) {
+      const Ei = getE(i);
+      if ((y[i]*Ei < -1e-3 && alpha[i] < C) || (y[i]*Ei > 1e-3 && alpha[i] > 0)) {
+        let j = (i + 1 + Math.floor(Math.random()*(n-1))) % n;
+        const Ej = getE(j);
+        const oldAi = alpha[i], oldAj = alpha[j];
+        let L, H;
+        if (y[i] !== y[j]) { L = Math.max(0, alpha[j]-alpha[i]); H = Math.min(C, C+alpha[j]-alpha[i]); }
+        else { L = Math.max(0, alpha[i]+alpha[j]-C); H = Math.min(C, alpha[i]+alpha[j]); }
+        if (Math.abs(L-H) < 1e-10) continue;
+        const eta = 2*K[i][j] - K[i][i] - K[j][j];
+        if (eta >= 0) continue;
+        alpha[j] -= (y[j]*(Ei-Ej))/eta;
+        alpha[j] = Math.min(H, Math.max(L, alpha[j]));
+        if (Math.abs(alpha[j]-oldAj) < 1e-5) continue;
+        alpha[i] += y[i]*y[j]*(oldAj - alpha[j]);
+        const b1 = b - Ei - y[i]*(alpha[i]-oldAi)*K[i][i] - y[j]*(alpha[j]-oldAj)*K[i][j];
+        const b2 = b - Ej - y[i]*(alpha[i]-oldAi)*K[i][j] - y[j]*(alpha[j]-oldAj)*K[j][j];
+        if (alpha[i]>0 && alpha[i]<C) b=b1; else if (alpha[j]>0 && alpha[j]<C) b=b2; else b=(b1+b2)/2;
+        changed++;
+      }
+    }
+    if (changed === 0) break;
+  }
+  return { alpha: Array.from(alpha), b };
+}
+
+function predict(model, X, y, x, kernelFn) {
+  let s = model.b;
+  for (let i = 0; i < X.length; i++) { if (model.alpha[i] > 1e-8) s += model.alpha[i]*y[i]*kernelFn(X[i], x); }
+  return s;
+}
+
+// ── Dataset generators ────────────────────────────────────────────────
+function genLinear(n=40, noise=0.25) {
+  const X=[], y=[];
+  for (let i=0;i<n;i++) { const cx=i<n/2?-0.6:0.6, cy=i<n/2?-0.4:0.4;
+    X.push([cx+(Math.random()-0.5)*noise*4, cy+(Math.random()-0.5)*noise*4]); y.push(i<n/2?-1:1); }
+  return {X,y};
+}
+function genCircle(n=60, noise=0.15) {
+  const X=[], y=[];
+  for (let i=0;i<n;i++) { const angle=Math.random()*2*Math.PI;
+    if (i<n/2) { const r=Math.random()*0.35+noise*(Math.random()-0.5); X.push([r*Math.cos(angle),r*Math.sin(angle)]); y.push(-1); }
+    else { const r=0.65+0.3*Math.random()+noise*(Math.random()-0.5); X.push([r*Math.cos(angle),r*Math.sin(angle)]); y.push(1); } }
+  return {X,y};
+}
+function genMoons(n=60, noise=0.12) {
+  const X=[], y=[], half=Math.floor(n/2);
+  for (let i=0;i<half;i++) { const a=Math.PI*(i/half); X.push([Math.cos(a)+(Math.random()-0.5)*noise*2, Math.sin(a)+(Math.random()-0.5)*noise*2-0.2]); y.push(-1); }
+  for (let i=0;i<n-half;i++) { const a=Math.PI*(i/(n-half)); X.push([1-Math.cos(a)+(Math.random()-0.5)*noise*2, 1-Math.sin(a)-0.6+(Math.random()-0.5)*noise*2-0.2]); y.push(1); }
+  return {X,y};
+}
+function genXOR(n=60, noise=0.18) {
+  const X=[], y=[];
+  for (let i=0;i<n;i++) { const qx=Math.random()>0.5?1:-1, qy=Math.random()>0.5?1:-1;
+    X.push([qx*(0.3+Math.random()*0.5)+(Math.random()-0.5)*noise, qy*(0.3+Math.random()*0.5)+(Math.random()-0.5)*noise]); y.push(qx*qy>0?1:-1); }
+  return {X,y};
+}
+
+const DATASETS = { linear:{label:"Linearly Separable",fn:genLinear}, circle:{label:"Concentric Circles",fn:genCircle}, moons:{label:"Two Moons",fn:genMoons}, xor:{label:"XOR Pattern",fn:genXOR} };
+const KERNELS = { linear:{label:"Linear"}, poly:{label:"Polynomial"}, rbf:{label:"RBF (Gaussian)"} };
+const W=520, H=520, PAD=30, GRID_RES=70;
+const COLORS = { bg:"#0D1117", card:"#161B22", border:"#30363D", text:"#E6EDF3", muted:"#8B949E", accent:"#58A6FF", classA:"#F78166", classB:"#58A6FF", svStroke:"#F0E68C", margin:"rgba(240,230,140,0.25)" };
+
+function toCanvas(x,y,xR,yR) { return [PAD+((x-xR[0])/(xR[1]-xR[0]))*(W-2*PAD), PAD+((yR[1]-y)/(yR[1]-yR[0]))*(H-2*PAD)]; }
+
+function SVMPlayground() {
+  const [dataset,setDataset]=useState("linear");
+  const [kernel,setKernel]=useState("linear");
+  const [C,setC]=useState(1.0);
+  const [gamma,setGamma]=useState(1.0);
+  const [degree,setDegree]=useState(3);
+  const [data,setData]=useState(()=>genLinear());
+  const [seed,setSeed]=useState(0);
+  const canvasRef=useRef(null);
+
+  const regenerate=useCallback(()=>{ setData(DATASETS[dataset].fn()); setSeed(s=>s+1); },[dataset]);
+  useEffect(()=>{ regenerate(); },[dataset]);
+
+  const kernelFn=useMemo(()=>{
+    if(kernel==="linear") return kernelLinear;
+    if(kernel==="poly") return (a,b)=>kernelPoly(a,b,degree);
+    return (a,b)=>kernelRBF(a,b,gamma);
+  },[kernel,gamma,degree]);
+
+  const {X,y}=data;
+  const xRange=useMemo(()=>{ if(!X.length) return [-2,2]; const xs=X.map(p=>p[0]); return [Math.min(...xs)-0.4, Math.max(...xs)+0.4]; },[X,seed]);
+  const yRange=useMemo(()=>{ if(!X.length) return [-2,2]; const ys=X.map(p=>p[1]); return [Math.min(...ys)-0.4, Math.max(...ys)+0.4]; },[X,seed]);
+  // ISL convention: larger C = more slack budget = wider margin
+  // Internally, SMO uses C as penalty (sklearn-style), so we invert
+  const cInternal = 1 / C;
+  const model=useMemo(()=>{ if(!X.length) return null; return solveSVM(X,y,cInternal,kernelFn,500); },[X,y,cInternal,kernelFn,seed]);
+
+  useEffect(()=>{
+    const canvas=canvasRef.current; if(!canvas||!model) return;
+    const ctx=canvas.getContext("2d"); const dpr=window.devicePixelRatio||1;
+    canvas.width=W*dpr; canvas.height=H*dpr; ctx.scale(dpr,dpr);
+    ctx.fillStyle="#0a0e14"; ctx.fillRect(0,0,W,H);
+    const grid=[], xStep=(xRange[1]-xRange[0])/GRID_RES, yStep=(yRange[1]-yRange[0])/GRID_RES;
+    for(let i=0;i<=GRID_RES;i++){ grid[i]=[]; for(let j=0;j<=GRID_RES;j++){ grid[i][j]=predict(model,X,y,[xRange[0]+j*xStep, yRange[0]+i*yStep],kernelFn); }}
+    const cellW=(W-2*PAD)/GRID_RES, cellH=(H-2*PAD)/GRID_RES;
+    for(let i=0;i<=GRID_RES;i++) for(let j=0;j<=GRID_RES;j++){ const val=grid[i][j]; const intensity=Math.min(Math.abs(val)*0.35,0.35);
+      ctx.fillStyle=val>0?`rgba(88,166,255,${intensity})`:`rgba(247,129,102,${intensity})`; ctx.fillRect(PAD+j*cellW-cellW/2, PAD+(GRID_RES-i)*cellH-cellH/2, cellW+0.5, cellH+0.5); }
+
+    function drawContour(level,color,lineWidth,dash=[]){
+      ctx.strokeStyle=color; ctx.lineWidth=lineWidth; ctx.setLineDash(dash); ctx.beginPath();
+      for(let i=0;i<GRID_RES;i++) for(let j=0;j<GRID_RES;j++){
+        const corners=[grid[i][j]-level,grid[i][j+1]-level,grid[i+1][j+1]-level,grid[i+1][j]-level];
+        const interp=(v1,v2,p1,p2)=>{ const t=v1/(v1-v2); return [p1[0]+t*(p2[0]-p1[0]),p1[1]+t*(p2[1]-p1[1])]; };
+        const tl=[PAD+j*cellW,PAD+(GRID_RES-i)*cellH], tr=[PAD+(j+1)*cellW,PAD+(GRID_RES-i)*cellH],
+              br=[PAD+(j+1)*cellW,PAD+(GRID_RES-i-1)*cellH], bl=[PAD+j*cellW,PAD+(GRID_RES-i-1)*cellH];
+        const pts=[tl,tr,br,bl], edges=[];
+        for(let e=0;e<4;e++){ const next=(e+1)%4; if((corners[e]>0)!==(corners[next]>0)) edges.push(interp(corners[e],corners[next],pts[e],pts[next])); }
+        if(edges.length===2){ ctx.moveTo(edges[0][0],edges[0][1]); ctx.lineTo(edges[1][0],edges[1][1]); }
+      }
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+    drawContour(1,COLORS.margin,1.2,[5,4]); drawContour(-1,COLORS.margin,1.2,[5,4]); drawContour(0,"#ffffff",2.5);
+
+    const svIndices=new Set(); model.alpha.forEach((a,i)=>{ if(a>1e-6) svIndices.add(i); });
+    for(let i=0;i<X.length;i++){
+      const [cx,cy]=toCanvas(X[i][0],X[i][1],xRange,yRange); const isSV=svIndices.has(i); const r=isSV?7:5;
+      if(isSV){ ctx.shadowColor=COLORS.svStroke; ctx.shadowBlur=10; }
+      ctx.beginPath(); ctx.arc(cx,cy,r,0,2*Math.PI); ctx.fillStyle=y[i]===1?COLORS.classB:COLORS.classA; ctx.fill();
+      if(isSV){ ctx.lineWidth=2; ctx.strokeStyle=COLORS.svStroke; ctx.stroke(); ctx.shadowBlur=0; }
+      else { ctx.lineWidth=1; ctx.strokeStyle="rgba(255,255,255,0.3)"; ctx.stroke(); }
+    }
+    ctx.fillStyle=COLORS.muted; ctx.font="11px 'JetBrains Mono',monospace"; ctx.textAlign="center";
+    for(let t=0;t<=4;t++){ const val=xRange[0]+(t/4)*(xRange[1]-xRange[0]); ctx.fillText(val.toFixed(1), PAD+(t/4)*(W-2*PAD), H-8); }
+    ctx.textAlign="right";
+    for(let t=0;t<=4;t++){ const val=yRange[0]+(t/4)*(yRange[1]-yRange[0]); ctx.fillText(val.toFixed(1), PAD-6, PAD+((4-t)/4)*(H-2*PAD)+4); }
+    ctx.fillStyle=COLORS.svStroke; ctx.font="bold 11px 'JetBrains Mono',monospace"; ctx.textAlign="left";
+    ctx.fillText(`${svIndices.size} support vector${svIndices.size!==1?"s":""}`, PAD+4, H-10);
+  },[model,X,y,kernelFn,xRange,yRange,seed]);
+
+  const nSV=model?model.alpha.filter(a=>a>1e-6).length:0;
+
+  const panelStyle={background:COLORS.card,border:`1px solid ${COLORS.border}`,borderRadius:10,padding:"14px 16px"};
+  const panelTitle={fontSize:11,fontFamily:"'JetBrains Mono',monospace",fontWeight:600,color:COLORS.muted,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:10};
+  const chipStyle=(active)=>({padding:"5px 12px",borderRadius:6,border:`1px solid ${active?COLORS.accent:COLORS.border}`,background:active?"rgba(88,166,255,0.15)":"transparent",color:active?COLORS.accent:COLORS.muted,fontSize:12,fontWeight:500,fontFamily:"inherit"});
+
+  const SliderControl=({label,value,min,max,step,onChange,hint,log})=>{
+    const displayVal=typeof value==="number"?(Number.isInteger(value)&&step>=1?value:value.toFixed(2)):value;
+    return (<div style={{marginTop:10}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:4}}>
+        <span style={{fontSize:12,color:COLORS.text,fontWeight:500}}>{label}</span>
+        <span style={{fontSize:13,fontFamily:"'JetBrains Mono',monospace",color:COLORS.accent,fontWeight:600}}>{displayVal}</span>
+      </div>
+      <input type="range" min={log?Math.log10(min):min} max={log?Math.log10(max):max} step={log?0.01:step}
+        value={log?Math.log10(value):value} onChange={e=>{const raw=parseFloat(e.target.value); onChange(log?Math.pow(10,raw):raw);}} />
+      {hint && <div style={{fontSize:10.5,color:COLORS.muted,marginTop:3}}>{hint}</div>}
+    </div>);
+  };
+
+  return (
+    <div style={{minHeight:"100vh",background:COLORS.bg,color:COLORS.text,fontFamily:"'DM Sans','Segoe UI',system-ui,sans-serif",display:"flex",flexDirection:"column",alignItems:"center",padding:"24px 16px"}}>
+      <div style={{textAlign:"center",marginBottom:20,maxWidth:600}}>
+        <h1 style={{fontSize:26,fontWeight:700,margin:"0 0 4px",letterSpacing:"-0.5px",background:"linear-gradient(135deg,#58A6FF,#F78166)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>SVM Playground</h1>
+        <p style={{color:COLORS.muted,fontSize:13,margin:0}}>Adjust C, switch kernels, and watch the decision boundary shift in real time</p>
+      </div>
+      <div style={{display:"flex",gap:24,flexWrap:"wrap",justifyContent:"center",alignItems:"flex-start",maxWidth:960}}>
+        <div style={{background:"#0a0e14",borderRadius:12,border:`1px solid ${COLORS.border}`,overflow:"hidden",boxShadow:"0 4px 24px rgba(0,0,0,0.4)"}}>
+          <canvas ref={canvasRef} style={{width:W,height:H,display:"block"}} />
+        </div>
+        <div style={{width:310,display:"flex",flexDirection:"column",gap:14}}>
+          <div style={panelStyle}>
+            <div style={panelTitle}>Dataset</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+              {Object.entries(DATASETS).map(([key,{label}])=>(<button key={key} style={chipStyle(dataset===key)} onClick={()=>setDataset(key)}>{label}</button>))}
+            </div>
+            <button onClick={regenerate} style={{marginTop:8,background:"rgba(88,166,255,0.12)",color:COLORS.accent,border:"1px solid rgba(88,166,255,0.3)",borderRadius:6,padding:"6px 14px",fontSize:12,fontWeight:600,fontFamily:"inherit",width:"100%"}}>↻ Regenerate Points</button>
+          </div>
+          <div style={panelStyle}>
+            <div style={panelTitle}>Kernel</div>
+            <div style={{display:"flex",gap:6}}>
+              {Object.entries(KERNELS).map(([key,{label}])=>(<button key={key} style={chipStyle(kernel===key)} onClick={()=>setKernel(key)}>{label}</button>))}
+            </div>
+            {kernel==="rbf" && <SliderControl label="γ (gamma)" value={gamma} min={0.1} max={10} step={0.1} onChange={setGamma} hint="Controls how far a single point's influence reaches" />}
+            {kernel==="poly" && <SliderControl label="Degree" value={degree} min={2} max={6} step={1} onChange={v=>setDegree(Math.round(v))} hint="Higher degree → more flexible boundary" />}
+          </div>
+          <div style={panelStyle}>
+            <div style={panelTitle}>Regularization</div>
+            <SliderControl label="C" value={C} min={0.01} max={100} step={0.01} onChange={setC} log hint="Large C → wide margin (tolerant) · Small C → narrow margin (strict)" />
+          </div>
+          <div style={panelStyle}>
+            <div style={panelTitle}>Reading the Plot</div>
+            <div style={{fontSize:12,color:COLORS.muted,lineHeight:1.7}}>
+              <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{display:"inline-block",width:10,height:10,borderRadius:"50%",background:COLORS.classB}} /><span>Class +1</span></div>
+              <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{display:"inline-block",width:10,height:10,borderRadius:"50%",background:COLORS.classA}} /><span>Class −1</span></div>
+              <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{display:"inline-block",width:10,height:10,borderRadius:"50%",background:"transparent",border:`2px solid ${COLORS.svStroke}`}} /><span>Support vectors</span></div>
+              <div style={{marginTop:4}}><span style={{color:"#fff",fontWeight:600}}>Solid white line</span> = decision boundary</div>
+              <div><span style={{color:COLORS.svStroke,fontWeight:600}}>Dashed lines</span> = margin (the "street")</div>
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            <div style={{...panelStyle,textAlign:"center"}}><div style={{fontSize:22,fontFamily:"'JetBrains Mono',monospace",fontWeight:700,color:COLORS.accent}}>{nSV}</div><div style={{fontSize:10,color:COLORS.muted,marginTop:2}}>Support Vectors</div></div>
+            <div style={{...panelStyle,textAlign:"center"}}><div style={{fontSize:22,fontFamily:"'JetBrains Mono',monospace",fontWeight:700,color:COLORS.accent}}>{X.length}</div><div style={{fontSize:10,color:COLORS.muted,marginTop:2}}>Total Points</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.render(<SVMPlayground />, document.getElementById("root"));
+</script>
+</body>
+</html>
