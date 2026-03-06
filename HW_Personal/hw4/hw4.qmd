@@ -1,0 +1,128 @@
+---
+title: "Biostat 212a Homework 4"
+subtitle: "Due Mar. 10, 2026 @ 11:59PM"
+author: "YOUR NAME and UID"
+date: today
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    number-sections: true
+    toc: true
+    toc-depth: 4
+    toc-location: left
+    code-fold: false
+engine: knitr
+knitr:
+  opts_chunk: 
+    fig.align: 'center'
+    # fig.width: 6
+    # fig.height: 4
+    message: FALSE
+    cache: false
+---
+
+## ISL Exercise 8.4.3 (10pts)
+Consider the Gini index, classification error, and entropy in a simple
+classification setting with two classes. Create a single plot that displays each of these quantities as a function of $p̂_{m1}$ . 
+
+* The x-axis should display $p̂_{m1}$ , ranging from 0 to 1, and the y-axis should display the value of the Gini index, classification error, and entropy.
+* Hint: In a setting with two classes, $p̂_{m1}$ = 1 − $p̂_{m2}$ . You could make
+this plot by hand, but it will be much easier to make in R.
+
+$p̂_{m1}$ is the proportion of class 1 observations in the m-th region, and $p̂_{m2}$ is the proportion of class 2 observations in the m-th region. The formulas for the Gini index, classification error, and entropy are as follows:
+
+Gini Index: $G = 1 - p̂_{m1}^2 - p̂_{m2}^2$  
+Classification Error: $E = 1 - max(p̂_{m1}, p̂_{m2})$  
+Entropy: $H = -p̂_{m1} log(p̂_{m1}) - p̂_{m2} log(p̂_{m2})$ 
+
+* ~ define 0 log(0) = 0 (so we don't get undefined values)
+
+```{r}
+library(ggplot2)
+
+# Create a object to store values of p̂_{m1} & p̂_{m2} (reciprocal)
+p_m1 <- seq(0, 1, by = 0.01)
+p_m2 <- 1 - p_m1
+
+probabilities <- data.frame(p_m1, p_m2)
+
+ggplot(probabilities, aes(x = p_m1)) +
+  geom_line(aes(y = 1 - p_m1^2 - p_m2^2, color = "Gini Index")) +
+  geom_line(aes(y = 1 - pmax(p_m1, p_m2), color = "Classification Error")) +
+  geom_line(aes(y = -p_m1 * log(p_m1) - p_m2 * log(p_m2), color = "Entropy")) +
+  labs(x = expression(hat(p)[m1]), y = "Value", title = "Gini Index, Classification Error, and Entropy") +
+  scale_color_manual(values = c("blue", "red", "green")) +
+  theme_minimal() +
+  theme(legend.title = element_blank()) +
+  scale_y_continuous(limits = c(0, 1))
+```
+
+## ISL Exercise 8.4.4 (10pts)
+
+This question relates to the plots in Figure 8.14.
+
+![](Figure8-14.png)
+
+(a) Sketch the tree corresponding to the partition of the predictor
+space illustrated in the left-hand panel of Figure 8.14. The num-
+bers inside the boxes indicate the mean of Y within each region.
+
+
+
+(b) Create a diagram similar to the left-hand panel of Figure 8.14,
+using the tree illustrated in the right-hand panel of the same
+figure. You should divide up the predictor space into the correct
+regions, and indicate the mean for each region.
+
+## ISL Exercise 8.4.5 (10pts)
+
+Suppose we produce ten bootstrapped samples from a data set
+containing red and green classes. We then apply a classification tree
+to each bootstrapped sample and, for a specific value of X, produce
+10 estimates of P (Class is Red|X):
+
+&emsp; 0.1, 0.15, 0.2, 0.2, 0.55, 0.6, 0.6, 0.65, 0.7, and 0.75.
+
+There are two common ways to combine these results together into a
+single class prediction. One is the majority vote approach discussed in
+this chapter. The second approach is to classify based on the average
+probability. In this example, what is the final classification under each
+of these two approaches?
+
+"majority vote: the overall prediction is the most commonly occurring
+majority class among B (# of bootstrapped training sets) predictions"
+
+* we look at the 10 estimates of P (Class is Red|X) and classify as Red if the majority of these estimates are greater than 0.5, and classify as Green otherwise.
+* in this case, we have 6 estimates greater than 0.5 (0.55, 0.6, 0.6, 0.65, 0.7, and 0.75) and 4 estimates less than or equal to 0.5 (0.1, 0.15, 0.2, and 0.2). Therefore, the majority vote approach would classify this observation as __Red__.
+
+With the average probability approach, we calculate the average of the 10 estimates of P (Class is Red|X):
+
+* Average probability = (0.1 + 0.15 + 0.2 + 0.2 + 0.55 + 0.6 + 0.6 + 0.65 + 0.7 + 0.75) / 10 = 4.5 / 10 = 0.45
+* Since the average probability of P (Class is Red|X) is less than 0.5, the average probability approach would classify this observation as __Green__.
+
+
+## ISL Lab 8.3. `Boston` data set (30pts)
+
+Follow the machine learning workflow to train regression tree, random forest, and boosting methods for predicting `medv`. Evaluate out-of-sample performance on a test set.
+
+```{r}
+library(ISLR2)
+library(tidyverse)
+
+data(Boston)
+Boston <- as_tibble(Boston)
+glimpse(Boston)
+```
+
+## ISL Lab 8.3 `Carseats` data set (30pts)
+
+Follow the machine learning workflow to train classification tree, random forest, and boosting methods for classifying `Sales <= 8` versus `Sales > 8`. Evaluate out-of-sample performance on a test set.
+
+```{r}
+# library(ISLR2)
+
+data(Carseats)
+Carseats <- as_tibble(Carseats)
+glimpse(Carseats)
+```
