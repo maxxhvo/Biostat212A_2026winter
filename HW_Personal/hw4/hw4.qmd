@@ -106,18 +106,170 @@ With the average probability approach, we calculate the average of the 10 estima
 
 Follow the machine learning workflow to train regression tree, random forest, and boosting methods for predicting `medv`. Evaluate out-of-sample performance on a test set.
 
-```{r}
-library(ISLR2)
+```{r setup}
+library(GGally)
+library(gtsummary)
+library(ranger)
 library(tidyverse)
+library(tidymodels)
+library(ISLR2)
 
+library(rpart.plot) # visualize the tree structure
+library(vip)        # variable importance plot
+```
+
+```{r}
+sessionInfo()
+```
+
+### Pre-processing
+
+```{r}
 data(Boston)
 Boston <- as_tibble(Boston)
 glimpse(Boston)
+
+### TODO: remove unecessary variables, if any
+```
+
+### Initial Splitting
+
+```{r}
+set.seed(321)
+Boston_split <- initial_split(Boston, prop = 0.5)
+Boston_split
+
+Boston_train <- training(Boston_split)
+Boston_test <- testing(Boston_split)
+dim(Boston_train)
+dim(Boston_test)
+```
+
+### Recipe/Pipeline creation
+
+```{r}
+reg_tree_recipe <- 
+  recipe(
+    medv ~ ., 
+    data = Boston_train
+  ) %>%
+  step_naomit(medv) %>%
+  # zero-variance filter for numeric predictor variables
+  step_zv(all_numeric_predictors()) # %>% 
+  # estimate the means and standard deviations
+  # prep(training = Hitters_other, retain = TRUE)
+
+tree_recipe
+```
+
+### Model specification
+
+https://parsnip.tidymodels.org/reference/decision_tree.html
+
+```{r}
+regression_tree_spec <- decision_tree(
+  mode = "regression", # regression tree for prediction task
+  cost_complexity = tune(),
+  tree_depth = tune(),
+  min_n = 5,
+  engine = "rpart"
+)
+# %>% set_engine("rpart", control = rpart.control(cp = 0.01, maxdepth = 5, minsplit = 10))
+```
+
+### Pipeline creation & Tuning Grid
+```{r}
+reg_tree_wf <- workflow() %>%
+  add_recipe(reg_tree_recipe) %>%
+  add_model(regression_tree_spec)
+reg_tree_wf
+```
+
+"ccp_alpha is the Minimal Cost-Complexity Pruning parameter. Greater values of ccp_alpha increase the number of nodes pruned."
+```{r}
+tree_grid <- grid_regular(cost_complexity(),
+                          tree_depth(),
+                          levels = c(100, 5))
+```
+
+### Cross Validation & Visualization
+
+```{r}
+set.seed(321)
+Boston_folds <- vfold_cv(Boston_train, v = 5)
+Boston_folds
+```
+
+```{r}
+reg_tree_fit <- reg_tree_wf %>%
+  tune_grid(
+    resamples = Boston_folds,
+    grid = tree_grid,
+    control = control_grid(save_pred = TRUE)
+  )
+reg_tree_fit
+```
+
+```{r}
+# visualize tuning results
+
+reg_tree_fit %>%
+  collect_metrics() %>%
+  print(width = Inf) %>%
+  filter(.metric == "rmse") %>%
+  mutate(tree_depth = as.factor(tree_depth)) %>%
+  ggplot(mapping = aes(x = cost_complexity, y = mean, color = tree_depth)) +
+  geom_point() + 
+  geom_line() + 
+  labs(x = "cost_complexity", y = "CV mse")
+```
+
+### Identify the best model and evaluate on the test set
+
+```{r}
+reg_tree_fit %>%
+  show_best(metric = "rmse")
+
+best_reg_tree <- reg_tree_fit %>%
+  select_best(metric = "rmse")
+best_reg_tree
+```
+
+```{r}
+final_reg_tree_wf <- reg_tree_wf %>%
+  finalize_workflow(best_reg_tree)
+final_reg_tree_wf
+
+# Fit the whole training set, then evaluate on the test set
+final_reg_tree_fit <- final_reg_tree_wf %>%
+  last_fit(Boston_split)
+
+# compile metrics
+final_reg_tree_fit %>%
+  collect_metrics()
+```
+
+### Visuallize the final regression tree
+
+```{r}
+final_reg_tree <- extract_workflow(final_reg_tree_fit)
+
+# shows the tree structure with the splits and the mean values in each terminal node
+final_reg_tree %>%
+  extract_fit_engine() %>%
+  rpart.plot(roundint = FALSE)
+
+# ~ variable importance plot (gini importance)
+final_reg_tree %>%
+  extract_fit_engine() %>%
+  vip(num_features = 10)
 ```
 
 ## ISL Lab 8.3 `Carseats` data set (30pts)
 
 Follow the machine learning workflow to train classification tree, random forest, and boosting methods for classifying `Sales <= 8` versus `Sales > 8`. Evaluate out-of-sample performance on a test set.
+
+### Pre-processing
 
 ```{r}
 # library(ISLR2)
@@ -125,4 +277,143 @@ Follow the machine learning workflow to train classification tree, random forest
 data(Carseats)
 Carseats <- as_tibble(Carseats)
 glimpse(Carseats)
+```
+
+```{r}
+# create a new binary variable for classification ~ factor variable
+Carseats <- Carseats %>%
+  mutate(Sales_Level = as.factor(ifelse(Sales <= 8, "Low", "High"))) %>%
+#  select(-Sales) # remove the original Sales variable
+```
+
+### Initial Splitting
+
+```{r}
+set.seed(321)
+Carseats_split <- initial_split(Carseats,
+    prop = 0.5,
+    strata = Sales_Level
+    )
+Carseats_split
+
+Carseats_train <- training(Carseats_split)
+Carseats_test <- testing(Carseats_split)
+
+dim(Carseats_train)
+dim(Carseats_test)
+```
+
+### Recipe/Pipeline creation
+
+```{r}
+class_tree_recipe <-
+  recipe(
+    Sales_Level ~ ., 
+    data = Carseats_train
+  ) %>%
+  step_naomit(Sales_Level) %>%
+  # zero-variance filter for numeric predictor variables
+  step_zv(all_numeric_predictors()) # %>% 
+  # estimate the means and standard deviations
+  # prep(training = Hitters_other, retain = TRUE)
+class_tree_recipe
+```
+
+### Model specification
+
+```{r}
+class_tree_spec <- decision_tree(
+  mode = "classification", # classification tree for classification task
+  cost_complexity = tune(),
+  tree_depth = tune(),
+  min_n = 5,
+  engine = "rpart"
+)
+```
+
+### Pipeline creation & Tuning Grid
+
+```{r}
+class_tree_wf <- workflow() %>%
+  add_recipe(class_tree_recipe) %>%
+  add_model(class_tree_spec)
+class_tree_wf
+```
+
+```{r}
+#| eval: false
+# utilize the same grid; evaluation of this chunk set to false
+tree_grid <- grid_regular(cost_complexity(),
+                          tree_depth(),
+                          levels = c(100, 5))
+```
+
+### Cross Validation & Visualization
+
+```{r}
+set.seed(321)
+
+# ~ Incorporation of strata within the cross validation folds
+Carseats_fold <- vfold_cv(Carseats_train, v = 5, strata = Sales_Level)
+Carseats_fold
+```
+
+```{r}
+class_tree_fit <- class_tree_wf %>%
+  tune_grid(
+    resamples = Carseats_fold,
+    grid = tree_grid,
+    metrics = metric_set(accuracy, roc_auc)
+  )
+class_tree_fit
+```
+
+```{r}
+class_tree_fit %>%
+  collect_metrics() %>%
+  print(width = Inf) %>%
+  filter(.metric == "accuracy") %>%
+  mutate(tree_depth = as.factor(tree_depth)) %>%
+  ggplot(mapping = aes(x = cost_complexity, y = mean, color = tree_depth)) +
+  geom_point() + 
+  geom_line() + 
+  labs(x = "cost_complexity", y = "CV accuracy")
+```
+
+### Identify the best model and evaluate on the test set
+
+```{r}
+tree_fit %>%
+  show_best(metric = "accuracy")
+best_class_tree <- class_tree_fit %>%
+  select_best(metric = "accuracy")
+best_class_tree
+```
+
+```{r}
+final_class_tree_wf <- class_tree_wf %>%
+  finalize_workflow(best_class_tree)
+final_class_tree_wf
+
+final_class_tree_fit <- final_class_tree_wf %>%
+  last_fit(Carseats_split)
+
+final_class_tree_fit %>%
+  collect_metrics()
+```
+
+### Visuallize the final classification tree
+
+```{r}
+final_class_tree <- extract_workflow(final_class_tree_fit)
+
+# shows the tree structure with the splits and the mean values in each terminal node
+final_class_tree %>%
+  extract_fit_engine() %>%
+  rpart.plot(roundint = FALSE)
+
+# ~ variable importance plot (gini importance)
+final_class_tree %>%
+  extract_fit_engine() %>%
+  vip(num_features = 10)
 ```
