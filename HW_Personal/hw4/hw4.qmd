@@ -68,12 +68,14 @@ This question relates to the plots in Figure 8.14.
 space illustrated in the left-hand panel of Figure 8.14. The num-
 bers inside the boxes indicate the mean of Y within each region.
 
-
+![](ISL8-4a.png)
 
 (b) Create a diagram similar to the left-hand panel of Figure 8.14,
 using the tree illustrated in the right-hand panel of the same
 figure. You should divide up the predictor space into the correct
 regions, and indicate the mean for each region.
+
+![](ISL8-4b.png)
 
 ## ISL Exercise 8.4.5 (10pts)
 
@@ -109,7 +111,7 @@ Follow the machine learning workflow to train regression tree, random forest, an
 ```{r setup}
 library(GGally)
 library(gtsummary)
-library(ranger)
+library(ranger) # https://cran.r-project.org/web/packages/ranger/index.html
 library(tidyverse)
 library(tidymodels)
 library(ISLR2)
@@ -126,10 +128,16 @@ sessionInfo()
 
 ```{r}
 data(Boston)
-Boston <- as_tibble(Boston)
+Boston <- as_tibble(Boston) %>%
+  filter(!is.na(medv)) # remove rows with missing values in the response variable
+
 glimpse(Boston)
 
-### TODO: remove unecessary variables, if any
+# Brief Feature Engineering
+# chas and rad as factor variables
+Boston <- Boston %>%
+  mutate(chas = as.factor(chas),
+          rad = as.factor(rad))
 ```
 
 ### Initial Splitting
@@ -153,13 +161,14 @@ reg_tree_recipe <-
     medv ~ ., 
     data = Boston_train
   ) %>%
+  # step may not be necessary due to pre-processing, but we include it for completeness
   step_naomit(medv) %>%
   # zero-variance filter for numeric predictor variables
   step_zv(all_numeric_predictors()) # %>% 
   # estimate the means and standard deviations
   # prep(training = Hitters_other, retain = TRUE)
 
-tree_recipe
+reg_tree_recipe
 ```
 
 ### Model specification
@@ -221,8 +230,10 @@ reg_tree_fit %>%
   ggplot(mapping = aes(x = cost_complexity, y = mean, color = tree_depth)) +
   geom_point() + 
   geom_line() + 
-  labs(x = "cost_complexity", y = "CV mse")
+  labs(x = "cost_complexity", y = "CV rmse")
 ```
+
+We see that stump underfits, deeper trees do better, and too much pruning hurts performance.
 
 ### Identify the best model and evaluate on the test set
 
@@ -234,6 +245,8 @@ best_reg_tree <- reg_tree_fit %>%
   select_best(metric = "rmse")
 best_reg_tree
 ```
+
+The best model has a tree depth of 8. (not at the min or max so it is not a boundary case)
 
 ```{r}
 final_reg_tree_wf <- reg_tree_wf %>%
@@ -275,15 +288,22 @@ Follow the machine learning workflow to train classification tree, random forest
 # library(ISLR2)
 
 data(Carseats)
-Carseats <- as_tibble(Carseats)
+Carseats <- as_tibble(Carseats) %>%
+  filter(!is.na(Sales)) # remove rows with missing values in the response variable
 glimpse(Carseats)
 ```
 
 ```{r}
+# Documentation: https://rdrr.io/cran/ISLR2/man/Carseats.html
+
 # create a new binary variable for classification ~ factor variable
+# Urban and US alredy coded as factor variables
 Carseats <- Carseats %>%
-  mutate(Sales_Level = as.factor(ifelse(Sales <= 8, "Low", "High"))) %>%
-#  select(-Sales) # remove the original Sales variable
+  mutate(
+    Sales_Level = factor(if_else(Sales <= 8, "Low", "High"),
+                         levels = c("Low", "High"))
+  ) %>%
+  select(-Sales)
 ```
 
 ### Initial Splitting
@@ -372,23 +392,30 @@ class_tree_fit
 class_tree_fit %>%
   collect_metrics() %>%
   print(width = Inf) %>%
-  filter(.metric == "accuracy") %>%
+  filter(.metric == "roc_auc") %>%
   mutate(tree_depth = as.factor(tree_depth)) %>%
   ggplot(mapping = aes(x = cost_complexity, y = mean, color = tree_depth)) +
   geom_point() + 
   geom_line() + 
-  labs(x = "cost_complexity", y = "CV accuracy")
+  labs(x = "cost_complexity", y = "CV roc_auc")
 ```
+
+The red line (tree_depth = 1) sits around 0.56 AUC, which is only slightly better than random guessing (0.50) showing that the stump underfits. moderate depth + moderate pruning → best AUC and heavier pruning hurts performance.
 
 ### Identify the best model and evaluate on the test set
 
+~ Evaluate out-of-sample performance on a test set.
+
 ```{r}
-tree_fit %>%
+class_tree_fit %>%
   show_best(metric = "accuracy")
 best_class_tree <- class_tree_fit %>%
   select_best(metric = "accuracy")
 best_class_tree
 ```
+
+The best model has a tree depth of 8. (not at the min or max so it is not a boundary case)
+
 
 ```{r}
 final_class_tree_wf <- class_tree_wf %>%
